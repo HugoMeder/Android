@@ -1,0 +1,5 @@
+<resources>
+    <dimen name="small_brush">2dp</dimen>
+    <dimen name="medium_brush">30dp</dimen>
+    <dimen name="large_brush">40dp</dimen>
+</resources>
