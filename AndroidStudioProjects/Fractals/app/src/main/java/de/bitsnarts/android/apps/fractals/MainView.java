@@ -21,6 +21,10 @@ public class MainView extends View {
     private boolean redraw = true ;
     private float downX, downY ;
     private double dx, dy ;
+    private Paint textPaint;
+    private int pointerCount;
+    private boolean drawLine;
+    private float px1, py1, px2, py2 ;
 
     public MainView(Context context, AttributeSet attrs){
         super(context, attrs);
@@ -39,6 +43,10 @@ public class MainView extends View {
             colors[2*i+1] = 0xff000000 ;
         }
 
+        textPaint = new Paint();
+        float ts = textPaint.getTextSize();
+        textPaint.setTextSize( ts*3 );
+        textPaint.setColor( 0xffff0000 );
     }
 
     @Override
@@ -53,7 +61,7 @@ public class MainView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         if ( redraw ) {
-            int w = canvasBitmap.getWidth();;
+            int w = canvasBitmap.getWidth();
             int h = canvasBitmap.getHeight() ;
             double dw = 4.0 ;
             double dh = 4.0 ;
@@ -65,18 +73,48 @@ public class MainView extends View {
             redraw = false ;
         }
         canvas.drawBitmap(canvasBitmap, 0, 0, canvasPaint);
+        drawText ( canvas ) ;
+        if ( drawLine )
+            drawLine ( canvas ) ;
+    }
+
+    private void drawLine(Canvas canvas) {
+        canvas.drawLine( px1, py1, px2, py2, textPaint );
+        float dx = (py1-py2)/2 ;
+        float dy =-(px1-px2)/2 ;
+        canvas.drawLine( px1+dx, py1+dy, px1-dx, py1-dy, textPaint );
+
+    }
+
+    private void drawText(Canvas canvas) {
+        float ts = textPaint.getTextSize();
+        float y = ts ;
+        canvas.drawText( "pointerCount "+pointerCount, ts, y, textPaint );
+        y += ts ;
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         float touchX = event.getX();
         float touchY = event.getY();
+        int pc = event.getPointerCount() ;
+        if ( pc != pointerCount ) {
+            pointerCount = pc ;
+        }
+        drawLine = false ;
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 downX = touchX ;
                 downY = touchY ;
                 break;
             case MotionEvent.ACTION_MOVE:
+                if ( pointerCount == 2 ) {
+                    px1 = event.getX( 0 ) ;
+                    py1 = event.getY( 0 ) ;
+                    px2 = event.getX( 1 ) ;
+                    py2 = event.getY( 1 ) ;
+                    drawLine = true ;
+                }
                 //drawPath.lineTo(touchX, touchY);
                 break;
             case MotionEvent.ACTION_UP:
