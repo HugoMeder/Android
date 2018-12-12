@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:title="coloring" >
+        <menu>
+            <group android:id="@+id/coloring">
+        <item android:id="@+id/coloring_bw"
+            android:title="@string/alternatingBlackAndWhite" />
+        <item android:id="@+id/coloring_kernel"
+            android:title="@string/onlyKernel" />
+            </group>
+        </menu>
+    </item>
+</menu>

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Fractals</string>
+    <string name="alternatingBlackAndWhite">alternating black and white</string>
+    <string name="onlyKernel">only kernel</string>
 </resources>
