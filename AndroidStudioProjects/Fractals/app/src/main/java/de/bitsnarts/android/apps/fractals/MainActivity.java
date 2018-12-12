@@ -9,10 +9,13 @@ import android.view.MenuItem;
 
 public class MainActivity extends AppCompatActivity {
 
+    private MainView view;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView( de.bitsnarts.android.apps.fractals.R.layout.activity_main);
+        view = (MainView)findViewById(R.id.drawing);
     }
 
     @Override
@@ -55,10 +58,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void coloringAction(MenuItem item) {
         int id = item.getItemId();
-        if ( id == R.id.coloring_bw) {
-            System.out.println ( "BW" ) ;
-        } else if ( id == R.id.coloring_kernel ) {
-            System.out.println ( "KERNEL" ) ;
-        }
+        view.setColoring ( id ) ;
     }
 }

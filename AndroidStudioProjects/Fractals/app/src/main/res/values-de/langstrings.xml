@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Fraktale</string>
+    <string name="coloring">Einfärbung</string>
+    <string name="alternatingBlackAndWhite">alternierend Schwarz-Weiß</string>
+    <string name="onlyKernel">Nur Kern</string>
+    <string name="grayScale">Grau-Skala</string>
+</resources>

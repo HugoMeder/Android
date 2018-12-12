@@ -31,14 +31,7 @@ public class MainView extends View {
         canvasPaint = new Paint(Paint.DITHER_FLAG);
         iter = new Mandelbrot ( 255, 2.0 ) ;
         colors = new int[256] ;
-		/*for ( int i = 0  ; i < 256 ; i++ ) {
-			colors[i] = i*0x10101 ;
-		}*/
-        for ( int i = 0  ; i < 128 ; i++ ) {
-            colors[2*i] = (255*0x10101) | 0xff000000 ;
-            colors[2*i+1] = 0xff000000 ;
-        }
-
+        setColoring ( R.id.coloring_bw ) ;
         textPaint = new Paint();
         float ts = textPaint.getTextSize();
         textPaint.setTextSize( ts*3 );
@@ -87,4 +80,26 @@ public class MainView extends View {
         invalidate () ;
     }
 
+    public void setColoring(int id) {
+        switch ( id ) {
+            case R.id.coloring_bw:
+                for ( int i = 0  ; i < 128 ; i++ ) {
+                    colors[2*i] = (255*0x10101) | 0xff000000 ;
+                    colors[2*i+1] = 0xff000000 ;
+                }
+                break ;
+            case R.id.coloring_kernel:
+                for ( int i = 0  ; i < 255 ; i++ ) {
+                    colors[i] = 0xffffffff;
+                }
+                colors[255] = 0xff000000 ;
+                break ;
+            case R.id.coloring_grayscale:
+                for ( int i = 0  ; i < 256 ; i++ ) {
+                    colors[i] = (i * 0x10101) | 0xff000000;
+                }
+                break ;
+        }
+		initRedraw() ;
+    }
 }
