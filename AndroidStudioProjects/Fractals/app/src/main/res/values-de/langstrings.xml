@@ -4,4 +4,11 @@
     <string name="alternatingBlackAndWhite">alternierend Schwarz-Weiß</string>
     <string name="onlyKernel">Nur Kern</string>
     <string name="grayScale">Grau-Skala</string>
+    <string name="image">Bild</string>
+    <string name="saveImage">Bild als Datei speichern</string>
+    <string name="saveImageToGaleryImage">Bild in Gallerie speichern?</string>
+    <string name="yes">Ja</string>
+    <string name="imageSaved">Bild In Galerie gespeicher unter</string>
+    <string name="imageNotSaved">"Bild konnte nicht gespeichert werden."</string>
+    <string name="cancel">Abbrechen</string>
 </resources>

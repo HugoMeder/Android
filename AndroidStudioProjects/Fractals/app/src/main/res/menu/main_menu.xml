@@ -3,12 +3,20 @@
     <item android:title="@string/coloring" >
         <menu>
             <group android:id="@+id/coloring">
-            <item android:id="@+id/coloring_bw"
-                android:title="@string/alternatingBlackAndWhite" />
-            <item android:id="@+id/coloring_grayscale"
-                android:title="@string/grayScale" />
-            <item android:id="@+id/coloring_kernel"
-                android:title="@string/onlyKernel" />
+                <item android:id="@+id/coloring_bw"
+                    android:title="@string/alternatingBlackAndWhite" />
+                <item android:id="@+id/coloring_grayscale"
+                    android:title="@string/grayScale" />
+                <item android:id="@+id/coloring_kernel"
+                    android:title="@string/onlyKernel" />
+            </group>
+        </menu>
+    </item>
+    <item android:title="@string/image" >
+        <menu>
+            <group android:id="@+id/image">
+                <item android:id="@+id/file_save"
+                    android:title="@string/saveImage" />
             </group>
         </menu>
     </item>

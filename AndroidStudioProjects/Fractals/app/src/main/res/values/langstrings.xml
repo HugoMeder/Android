@@ -4,4 +4,11 @@
     <string name="alternatingBlackAndWhite">alternating black and white</string>
     <string name="onlyKernel">only kernel</string>
     <string name="grayScale">gray scale</string>
+    <string name="image">image</string>
+    <string name="saveImage">save image as file</string>
+    <string name="saveImageToGaleryImage"> Save drawing to device Gallery?</string>
+    <string name="yes">Yes</string>
+    <string name="imageSaved">Drawing saved to Gallery as</string>
+    <string name="imageNotSaved">Image could not be saved.</string>
+    <string name="cancel">Cnacel</string>
 </resources>
