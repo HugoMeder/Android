@@ -8,12 +8,14 @@ public class RenderingThread implements Runnable {
     private Bitmap bitmap;
     private PixelShader shader;
     private boolean restart;
+    private boolean run ;
     private int perc;
 
     public RenderingThread ( Bitmap bitmap, PixelShader shader, RenderingThreadListener listener ) {
         this.bitmap = bitmap ;
         this.shader = shader ;
         this.listener = listener ;
+        this.run = true ;
         new Thread ( this ).start() ;
     }
 
@@ -40,6 +42,8 @@ public class RenderingThread implements Runnable {
     }
 
     private void render() {
+        perc = 0 ;
+        listener.renerdingProgressChanged(this, perc);
         int w = bitmap.getWidth();
         int h = bitmap.getHeight();
         for ( int y = 0 ; y < h ; y++ ) {
