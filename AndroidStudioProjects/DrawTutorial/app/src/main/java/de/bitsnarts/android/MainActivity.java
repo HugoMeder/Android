@@ -1,6 +1,8 @@
 package de.bitsnarts.android;
 
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -177,11 +179,18 @@ public class MainActivity extends AppCompatActivity  implements View.OnClickList
                 public void onClick(DialogInterface dialog, int which){
                     //drawView.setDrawingCacheEnabled(true);
                     Bitmap bm = drawView.getBitmap();
+
                     if ( bm == null ) {
                         Toast unsavedToast = Toast.makeText(getApplicationContext(),
                                 "Oops! bm is null.", Toast.LENGTH_SHORT);
                         unsavedToast.show();
                     }
+                    Canvas canvas = new Canvas(bm);
+                    Paint paint = new Paint() ;
+                    paint.setTextSize( paint.getTextSize()*3 );
+                    paint.setColor ( 0xffff0000 ) ;
+                    canvas.drawText ( "Hello", 100, 100, paint ) ;
+
                     String imgSaved = MediaStore.Images.Media.insertImage(
                             getContentResolver(), bm,
                             UUID.randomUUID().toString()+".png", "drawing");

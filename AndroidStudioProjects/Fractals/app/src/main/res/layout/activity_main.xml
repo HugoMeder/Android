@@ -23,5 +23,4 @@
         android:layout_marginTop="@dimen/progressBarHeight"
         android:layout_weight="1"
         android:background="#FFFFFFFF" />
-
-</android.support.constraint.ConstraintLayout >
+    </android.support.constraint.ConstraintLayout >

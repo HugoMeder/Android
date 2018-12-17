@@ -1,0 +1,112 @@
+% ----------------------------------------------------------------
+% AMS-LaTeX Paper ************************************************
+% **** -----------------------------------------------------------
+% documentclass[fleqn]{report}
+\documentclass[a4paper,fleqn]{article}
+% \documentclass[a4paper,fleqn]{scrreprt}
+\setlength{\oddsidemargin}{0.0cm}
+\setlength{\evensidemargin}{0.0cm}
+\setlength{\textwidth}{15.0cm}
+\setlength{\paperwidth}{210mm}
+\setlength{\paperheight}{297mm}
+%\usepackage{german}
+\usepackage{graphicx} 
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bbold}
+\usepackage{alltt}
+%\usepackage{hyperref}
+
+\newcounter{thm}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Hilfssatz}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+%\newenvironment{\vspace{1ex}\noindent{\bf Proof}\hspace{0.5em}}
+%	{\hfill\qed\vspace{1ex}}
+ 
+
+\newenvironment{example}[1][Example]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+      \ifdim\lastskip<1.5em \hskip-\lastskip
+      \hskip1.5em plus0em minus0.5em \fi \nobreak
+      \vrule height0.75em width0.5em depth0.25em\fi}
+
+\newcommand{\qt}{\texttt}
+
+\newcommand{\bibdef}[4]{\bibitem{#1} {\bf #2:} {\it #3}\\#4}
+
+\newcommand{\eeeccc}{\end{section}}
+\newcommand{\atanh}{\mathrm{atan}}
+
+\numberwithin{equation}{section}
+
+\newcommand{\beginchap}[1]{\begin{section}{#1}
+%\setcounter{equation}{1}
+}
+\setcounter{tocdepth}{4}
+\setcounter{secnumdepth}{4}
+
+
+\title{Basic Structure and Implementation}
+\author{Hugo Meder}
+\begin{document}
+\begin{titlepage}
+\maketitle
+\end{titlepage}
+\newpage
+
+\beginchap{An Arbitrarily Zoomable Image}
+At a vary abstract level, the app is on showing a rectangular part ao an arbitrarily zoomable Image, such as fractal images.
+\begin{subsection}{The Image Abstraction}
+The Image abstraction is done by a Pixel Shader interface. The interface consist of a single mehtod:
+\begin{verbatim}
+int getColorForPixel ( int x, int y ) ;
+\end{verbatim}
+\end{subsection}
+\begin{subsection}{Parametrization the rectangular Part of the image and its pixel structure}
+One information the pixel shader must use in order to render the image, is function that maps pixel coordinates (the upper left pixel taking the coordinate (0,0)) into image coordinates. This class is called
+\verb{ConformalAffineTransform2D{. The parameter that describe the transform are two complex numbers. The first defines a rotation and scaling operation a the complex multiplication does. The second describes a shift operation by complex addition. Thus the transform looks like this:
+\begin{eqnarray}
+	f : \mathbb{C} \rightarrow \mathbb{C} : x \mapsto fx+s
+\end{eqnarray}
+The above mapping is accessible by the method
+\begin{verbatim}
+public void apply ( double[] in, double[] out ) ;
+\end{verbatim}
+where \verb{in{ and \verb{out{ are of size 2 containing the two coordinates.
+As any set of transforms constitute a mathematical group with a group multiplication and an inverse, so the above does:
+\begin{verbatim}
+public ConformalAffineTransform2D times ( ConformalAffineTransform2D t ) ;
+public ConformalAffineTransform2D inverse () ;
+\end{verbatim}
+Given a bitmap with width \verb{w{ and height \verb{h{, then the upper left pixel is mapped by \verb[apply ( in, out )[ where \verb[in[ contains two zeroes.
+For the lower right pixel we set \verb{w-1{ and \verb{h-1{ into \verb{in{. So far the contents of a bitmap is defined an an abstract level.
+\end{subsection}
+\eeeccc
+
+\beginchap{Threads, Events and App Structure}
+\begin{subsection}{App Behavior Survey}
+At startup, a transform for pixel mapping and a pixel shader is defined. Then a shading thread is started to do the work. This shader emits progress events visualized in a small progress bar.
+At the end of its work, the newly rendered image is shown in the app. Whenever a one-point or two-point touch event is recognized, this modifies the transform in an appropriate, unique way. This modified transform is propagated to the rendering thread restarting the job for the new transform. Whenever another transform is produced, the render thread is restarted. This is visible for the user be a corresponding behavior of the mentioned progress bar. As long the rendering thread is working, the last fully rendered image is displayed using a matrix corresponding to the motion displaying a preview of the image.
+\end{subsection}
+
+\begin{subsection}{A Dragger Class}
+A \verb{Dragger{ class is used to handle the the \verb{onTouchEvent(){ events. This call returns \verb{true{ whenever a new transform was created. New transforms are forwarded to the rendering thread, and the matrix is updated appropriately.
+\end{subsection}
+
+\begin{subsection}{The Rendering Thread}
+
+\end{subsection}
+
+\eeeccc
+\end{document}

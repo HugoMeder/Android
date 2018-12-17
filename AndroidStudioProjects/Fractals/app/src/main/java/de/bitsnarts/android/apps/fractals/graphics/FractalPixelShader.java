@@ -25,4 +25,9 @@ public class FractalPixelShader implements PixelShader {
         return colors[iterator.iteratationCount(out[0], out[1])];
     }
 
+    @Override
+    public ConformalAffineTransform2D getTransform() {
+        return tr ;
+    }
+
 }

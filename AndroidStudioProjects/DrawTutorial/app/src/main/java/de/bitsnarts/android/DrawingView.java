@@ -1,6 +1,7 @@
 package de.bitsnarts.android;
 
 import android.graphics.Color;
+import android.graphics.Xfermode;
 import android.view.View;
 import android.content.Context;
 import android.util.AttributeSet;
@@ -45,7 +46,14 @@ public class DrawingView extends View {
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
         canvasPaint = new Paint(Paint.DITHER_FLAG);
         textPaint = new Paint();
-        float ts = textPaint.getTextSize();
+        textPaint.setColor( 0xff00ff00 );
+        //textPaint.clearShadowLayer();
+
+        //textPaint.setXfermode( new PorterDuffXfermode(PorterDuff.Mode.SRC) ) ;
+        //Xfermode mode = textPaint.getXfermode();
+        //String modeStr = "" + mode;
+
+        float ts = textPaint.getTextSize(  );
         textPaint.setTextSize( ts*3 );
         brushSize = getResources().getInteger(R.integer.medium_size);
         lastBrushSize = brushSize;

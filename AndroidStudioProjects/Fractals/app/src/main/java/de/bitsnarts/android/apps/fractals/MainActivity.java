@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
 
 import java.util.UUID;
@@ -21,10 +22,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Logger.log().println ( "Started !" ) ;
+        Logger.log().println("Started !");
         super.onCreate(savedInstanceState);
-        setContentView( de.bitsnarts.android.apps.fractals.R.layout.activity_main);
-        view = (MainView)findViewById(R.id.drawing);
+        setContentView(de.bitsnarts.android.apps.fractals.R.layout.activity_main);
+        view = (MainView) findViewById(R.id.drawing);
+        ProgressBar bar = (ProgressBar)findViewById(R.id.indeterminateBar);
+        view.setProgressBar ( bar ) ;
     }
 
     @Override

@@ -2,5 +2,5 @@
     <dimen name="small_brush">2dp</dimen>
     <dimen name="medium_brush">30dp</dimen>
     <dimen name="large_brush">40dp</dimen>
-    <dimen name="progressBarHeight">10dp</dimen>
+    <dimen name="progressBarHeight">3dp</dimen>
 </resources>
