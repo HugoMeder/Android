@@ -16,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -39,8 +40,12 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationChanged(Location location) {
                 if ( location == null )
                     textView.append( "?");
-                else
-                    textView.append( "\n"+location.getLatitude()+" "+location.getLongitude());
+                else {
+                    textView.setText( "\n"+new Date() +
+                            "\nHöhe "+location.getAltitude()+
+                            "\nBreite "+location.getLatitude()+
+                            "\nLänge "+ location.getLongitude());
+                }
             }
 
             @Override
@@ -96,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 try{
                     List<String> providers = locationManager.getAllProviders();
-                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 0, locationListener);
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1, 0, locationListener);
                     Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);;
                     textView.append( "\ndata...");
                     locationListener.onLocationChanged( loc );
