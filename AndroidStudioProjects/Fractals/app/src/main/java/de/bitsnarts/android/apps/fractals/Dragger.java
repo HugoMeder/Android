@@ -1,7 +1,6 @@
 package de.bitsnarts.android.apps.fractals;
 
 import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.view.MotionEvent;
 
@@ -20,8 +19,8 @@ public class Dragger {
 
     private ConformalAffineTransform2D tr0, tr;
     private DragMode dragMode = IDLE ;
-    private float p1x_start, p1y_start, p2x_start, p2y_start ;
-    private float p1x, p1y, p2x, p2y ;
+    private float p0x_start, p0y_start, p1x_start, p1y_start;
+    private float p0x, p0y, p1x, p1y;
     private int id0, id1 ;
 
     private static float pointRadius = 100 ;
@@ -39,11 +38,11 @@ public class Dragger {
         Paint endPaint = new Paint () ;
         endPaint.setColor ( 0xffff0000 ) ;
         if ( dragMode == DragMode.LINE ) {
-            drawLine ( canvas, startPaint, p1x_start, p1y_start, p2x_start, p2y_start ) ;
-            drawLine ( canvas, endPaint, p1x, p1y, p2x, p2y ) ;
+            drawLine ( canvas, startPaint, p0x_start, p0y_start, p1x_start, p1y_start) ;
+            drawLine ( canvas, endPaint, p0x, p0y, p1x, p1y) ;
         } else {
-            drawPoint ( canvas, startPaint, p1x_start, p1y_start ) ;
-            drawPoint ( canvas, endPaint, p1x, p1y ) ;
+            drawPoint ( canvas, startPaint, p0x_start, p0y_start) ;
+            drawPoint ( canvas, endPaint, p0x, p0y) ;
         }
     }
 
@@ -73,87 +72,113 @@ public class Dragger {
         int pc = event.getPointerCount() ;
         if ( pc < 1 || pc > 2 )
             return false ;
-        switch (event.getAction()) {
+        float[] x = new float[pc] ;
+        float[] y = new float[pc] ;
+        int[] id = new int[pc] ;
+        for ( int i = 0 ; i < pc ; i++ ) {
+            x[i] = event.getX(i) ;
+            y[i] = event.getY(i) ;
+            id[i] = event.getPointerId(i) ;
+        }
+        onToutchEvent ( event.getEventTime(), event.getAction(), x, y, id ) ;
+        return true;
+    }
+
+    private void onToutchEvent(long eventTime, int action, float[] x, float[] y, int[] id) {
+        logEvent ( eventTime, action, x, y, id ) ;
+        int pc = x.length ;
+        switch ( action ) {
             case MotionEvent.ACTION_DOWN:
                 break;
             case MotionEvent.ACTION_MOVE:
                 switch ( dragMode ) {
                     case IDLE: {
-                        if ( pc == 1 ) {
+                        if (pc == 1) {
                             //Logger.log().println ( "start POINT" ) ;
                             dragMode = DragMode.POINT;
-                            p1x_start = event.getX( 0 ) ;
-                            p1y_start = event.getY( 0 ) ;
-                            id0 = event.getPointerId( 0 ) ;
+                            p0x_start = x[0];
+                            p0y_start = y[0];
+                            id0 = id[0];
                         } else {
                             //Logger.log().println ( "start LINE 1" ) ;
-                            dragMode = DragMode.LINE ;
-                            p1x_start = event.getX(0 ) ;
-                            p1y_start = event.getY(0 ) ;
-                            p2x_start = event.getX(1 ) ;
-                            p2y_start = event.getY(1 ) ;
+                            dragMode = DragMode.LINE;
+                            p0x_start = x[0];
+                            p0y_start = y[0];
+                            p1x_start = x[1];
+                            p1y_start = y[1];
+                            id0 = id[0];
+                            id1 = id[1];
                         }
-                        break ;
+                        break;
                     }
-                    case POINT:{
-                        if ( pc == 2 ) {
+                    case POINT: {
+                        if (pc == 2) {
                             applyTransform0();
                             //Logger.log().println ( "start LINE 2" ) ;
-                            dragMode = DragMode.LINE ;
-                            p1x_start = event.getX(0 ) ;
-                            p1y_start = event.getY(0 ) ;
-                            p2x_start = event.getX(1 ) ;
-                            p2y_start = event.getY(1 ) ;
-                            id0 = event.getPointerId( 0 ) ;
-                            id1 = event.getPointerId( 1 ) ;
+                            dragMode = DragMode.LINE;
+                            p0x_start = x[0];
+                            p0y_start = y[0];
+                            p1x_start = x[1];
+                            p1y_start = y[1];
+                            id0 = id[0];
+                            id1 = id[1];
                         } else {
                             //Logger.log().println ( "POINT" ) ;
-                            if ( id0 != event.getPointerId( 0 ) ) {
-                                applyTransform0 () ;
-                                p1x_start = event.getX( 0 ) ;
-                                p1y_start = event.getY( 0 ) ;
-                                id0 = event.getPointerId( 0 ) ;
-                                Logger.log().println ( "Pointer Id mismatch 1" ) ;
+                            if (id0 != id[0]) {
+                                applyTransform0();
+                                p0x_start = x[0];
+                                p0y_start = y[0];
+                                id0 = id[0];
+                                Logger.log().println("Pointer Id mismatch 1");
                             } else {
-                                p1x = event.getX( 0 ) ;
-                                p1y = event.getY( 0 ) ;
-                                applyTransform () ;
+                                p0x = x[0];
+                                p0y = y[0];
+                                applyTransform();
                             }
                         }
-                        break ;
+                        break;
                     }
-                    case LINE:{
-                        if ( pc == 2 ) {
+                    case LINE: {
+                        if (pc == 2) {
                             //Logger.log().println ( "LINE" ) ;
-                            if ( id0 != event.getPointerId( 0 )||id1 != event.getPointerId( 1 ) ) {
+                            if (id0 != id[0] || id1 != id[1]) {
                                 applyTransform0();
                                 //Logger.log().println ( "start LINE 2" ) ;
-                                p1x_start = event.getX(0 ) ;
-                                p1y_start = event.getY(0 ) ;
-                                p2x_start = event.getX(1 ) ;
-                                p2y_start = event.getY(1 ) ;
-                                id0 = event.getPointerId( 0 ) ;
-                                id1 = event.getPointerId( 1 ) ;
-                                Logger.log().println ( "Pointer Id mismatch 2" ) ;
+                                p0x_start = x[0];
+                                p0y_start = y[0];
+                                p1x_start = x[1];
+                                p1y_start = y[1];
+                                id0 = id[0];
+                                id1 = id[1];
+                                Logger.log().println("Pointer Id mismatch 2");
                             } else {
-                                p1x = event.getX(0);
-                                p1y = event.getY(0);
-                                p2x = event.getX(1);
-                                p2y = event.getY(1);
-                                applyTransform () ;
+                                p0x = x[0];
+                                p0y = y[0];
+                                p1x = x[1];
+                                p1y = y[1];
+                                applyTransform();
                             }
                         }
-                        break ;
+                        break;
                     }
                 }
-                break ;
-            case MotionEvent.ACTION_UP:
-                applyTransform0 () ;
-                dragMode = IDLE ;
-                lastApply = IDLE ;
                 break;
+                case MotionEvent.ACTION_UP:
+                    applyTransform0();
+                    dragMode = IDLE;
+                    lastApply = IDLE;
+                    break;
+                }
         }
-        return true;
+
+    private void logEvent(long eventTime, int action, float[] x, float[] y, int[] id) {
+        int pc = x.length ;
+        Logger.log().print ( ""+eventTime+" "+action+" "+x[0]+" "+y[0]+" "+id[0] ) ;
+        if ( pc == 2 ) {
+            Logger.log().println ( " "+x[1]+" "+y[1]+" "+id[1] ) ;
+        } else {
+            Logger.log().println () ;
+        }
     }
 
 
@@ -172,9 +197,9 @@ public class Dragger {
 
     private ConformalAffineTransform2D getPixelTransform() {
         if ( dragMode == DragMode.POINT ) {
-            return new ConformalAffineTransform2D ( 1, 0, p1x-p1x_start, p1y-p1y_start ) ;
+            return new ConformalAffineTransform2D ( 1, 0, p0x - p0x_start, p0y - p0y_start) ;
         } else if ( dragMode == DragMode.LINE){
-            return ConformalAffineTransform2D.fromLinePair ( p1x_start, p1y_start, p2x_start,p2y_start, p1x, p1y, p2x, p2y ) ;
+            return ConformalAffineTransform2D.fromLinePair (p0x_start, p0y_start, p1x_start, p1y_start, p0x, p0y, p1x, p1y) ;
         } else {
             return null ;
         }
