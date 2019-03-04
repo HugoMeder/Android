@@ -5,26 +5,14 @@
     android:layout_height="match_parent"
     android:background="#372492"
     >
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="REQUEST LOCATION"
-        android:id="@+id/button"
-        android:layout_centerVertical="true"
-        android:layout_centerHorizontal="true"
-        />
-
     <TextView
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:text="Coordinates:"
         android:id="@+id/textView"
-        android:layout_below="@id/button"
         android:layout_centerHorizontal="true"
         android:gravity="center"
         android:background="#010014"
         android:textColor="#ffffff"/>
-
 </RelativeLayout>

@@ -1,4 +1,4 @@
-package com.example.hugomeder.gpstest;
+package de.bitsnarts.android.gpstest;
 
 import android.location.Location;
 

@@ -11,7 +11,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
 
-import com.example.hugomeder.gpstest.LocationLogger;
+import de.bitsnarts.android.gpstest.LocationLogger;
 
 import java.io.File;
 import java.io.FileNotFoundException;

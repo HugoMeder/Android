@@ -1,4 +1,4 @@
-package com.example.hugomeder.gpstest;
+package de.bitsnarts.android.gpstest;
 
 import android.Manifest;
 import android.content.ComponentName;
@@ -21,6 +21,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+//import com.example.hugomeder.gpstest.R;
+
 import java.io.File;
 import java.util.Date;
 import java.util.List;
@@ -30,7 +32,7 @@ import de.bitsnarts.android.gps.service.IGPSService;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button button;
+    //private Button button;
     private TextView textView;
     private LocationManager locationManager;
     private LocationListener locationListener;
@@ -66,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        button = (Button) findViewById(R.id.button);
+        //button = (Button) findViewById(R.id.button);
         textView = (TextView) findViewById(R.id.textView);
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -163,6 +165,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void configureButton() {
+        /*
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -178,7 +181,20 @@ public class MainActivity extends AppCompatActivity {
                     th.printStackTrace();
                 }
             }
-        });
+        })
+        */
+        try{
+            List<String> providers = locationManager.getAllProviders();
+
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1, 0, locationListener);
+            locationManager.registerGnssStatusCallback ( gnssStalusListener ) ;
+            Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);;
+            textView.append( "\ndata...");
+            locationListener.onLocationChanged( loc );
+        } catch ( Throwable th ) {
+            th.printStackTrace();
+        }
+        ;
     }
     }
 
