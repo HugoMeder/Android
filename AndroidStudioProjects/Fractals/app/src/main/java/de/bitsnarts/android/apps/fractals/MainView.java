@@ -103,7 +103,8 @@ public class MainView extends View implements RenderingThreadListener {
         //x = 0.31156502751774207; y = 0.027430673607015097;
         //iter = new Julia(255, 2.0, 0.31156502751774207, 0.027430673607015097 );
         //x = -0.7855512517712042; y = -0.1408234738380438;
-        iter = new Julia(255, 2.0, -0.7855512517712042, -0.1408234738380438 );
+        //iter = new Julia(255, 2.0, -0.7855512517712042, -0.1408234738380438 );
+        iter = new Mandelbrot(255, 2.0  );
         tr = ConformalAffineTransform2D.createFromAngleAndScale(0, scale, -w * scale / 2, -h * scale / 2);
         fractalPixelShader = new FractalPixelShader(iter, tr, colors);
         renderingThread = new RenderingThread( w, h, fractalPixelShader, this );
