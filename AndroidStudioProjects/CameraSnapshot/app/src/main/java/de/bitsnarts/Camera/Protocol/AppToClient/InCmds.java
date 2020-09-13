@@ -24,6 +24,9 @@ public enum InCmds {
 	private static TreeMap<Integer,InCmds> getMap() {
 		if ( cmdsByCode == null ) {
 			TreeMap<Integer, InCmds> rv = new TreeMap<Integer,InCmds> () ;
+			for ( InCmds c : values () ) {
+				rv.put( c.code, c ) ;
+			}
 			cmdsByCode = rv ;
 		}
 		return cmdsByCode ;

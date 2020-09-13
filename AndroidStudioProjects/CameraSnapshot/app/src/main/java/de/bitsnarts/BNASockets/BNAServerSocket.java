@@ -9,14 +9,25 @@ import java.net.Socket;
 public class BNAServerSocket {
 
 	private int serviceID;
+	private Socket s;
 
 	public BNAServerSocket ( int serviceID ) {
 		this.serviceID = serviceID ;
 	}
 	
+	public void close () {
+		if ( s!= null ) {
+			try {
+				s.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
 	public Socket accept () throws IOException {
 		InetAddress server = BNALookup.getAddress() ;
-		Socket s = new Socket ( server, Globals.port ) ;
+		s = new Socket ( server, Globals.port ) ;
 		int to = s.getSoTimeout() ;
 		s.setSoTimeout( 0 );
 		DataOutputStream dout = new DataOutputStream ( s.getOutputStream() ) ;

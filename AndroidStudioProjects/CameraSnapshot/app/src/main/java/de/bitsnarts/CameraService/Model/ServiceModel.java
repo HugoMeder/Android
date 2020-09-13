@@ -1,5 +1,6 @@
 package de.bitsnarts.CameraService.Model;
 
+import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraDevice;
 
 import de.bitsnarts.CameraService.ServiceListener;
@@ -14,4 +15,5 @@ public interface ServiceModel {
     void halt();
     void setCamera(CameraDevice cameraDevice);
     void startPreview() throws Exception;
+    void setSurfaceTexture(SurfaceTexture surfaceTexture);
 }

@@ -2,6 +2,7 @@ package de.bitsnarts.CameraService;
 
 import android.annotation.TargetApi;
 import android.content.Intent;
+import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraDevice;
 import android.os.Build;
 import android.os.IBinder;
@@ -14,13 +15,15 @@ import de.bitsnarts.CameraService.Model.ServiceModel;
 public class ServiceImpl extends android.app.Service implements ServiceModel, CameraTaskListener {
 
     ServiceBinder binder = new ServiceBinder ( this ) ;
-    ServiceThread cooumication = new ServiceThread ( this ) ;
+    CommunicationThread comunication = new CommunicationThread( this ) ;
     private Vector<ServiceListener> listeners = new Vector<ServiceListener> () ;
     private String state = "initial" ;
     private CameraDevice camera;
     CameraTask cameraTask = new CameraTask () ;
+    private SurfaceTexture surfaceTexture;
+    private boolean started;
 
-    ServiceImpl() {
+    public ServiceImpl() {
         cameraTask.addCameraTaskListener( this );
     }
 
@@ -29,8 +32,8 @@ public class ServiceImpl extends android.app.Service implements ServiceModel, Ca
         return binder;
     }
 
-    public ServiceThread getCooumication() {
-        return cooumication;
+    public CommunicationThread getComunication() {
+        return comunication;
     }
 
     void setState ( String string ) {
@@ -65,18 +68,28 @@ public class ServiceImpl extends android.app.Service implements ServiceModel, Ca
 
     @Override
     public void start() {
-        /*
-        if ( cooumication.isRunning() )
-            return ;
-        new Thread (cooumication).start();
-        */
+        synchronized ( this ) {
+            if ( started )
+                return ;
+            started = true ;
+        }
+        setState ( "starting..." ) ;
+        if ( comunication.isRunning() ) {
+            setState ( "stop old thread ..." ) ;
+            comunication.stopCommunication () ;
+        }
+        comunication.startCommunication();
+        println ( "hello" ) ;
     }
 
     @Override
     public void halt() {
-        /*
-        cooumication.halt();
-        */
+        synchronized ( this ) {
+            if ( !started )
+                return ;
+            started = false ;
+        }
+        comunication.stopCommunication();
     }
 
     @Override
@@ -84,7 +97,7 @@ public class ServiceImpl extends android.app.Service implements ServiceModel, Ca
         synchronized ( listeners ) {
             camera = cameraDevice ;
         }
-        println ( "setCamera ( "+camera+")" ) ;
+        //println ( "setCamera ( "+camera+")" ) ;
         cameraTask.setCamera ( camera ) ;
     }
 
@@ -96,7 +109,19 @@ public class ServiceImpl extends android.app.Service implements ServiceModel, Ca
     }
 
     @Override
+    public void setSurfaceTexture(SurfaceTexture surfaceTexture) {
+        this.surfaceTexture = surfaceTexture ;
+        if ( cameraTask != null ) {
+            cameraTask.setSurfaceTexture ( surfaceTexture ) ;
+        }
+    }
+
+    @Override
     public void println(String text) {
-        setState ( "camera: "+text ) ;
+        if ( comunication != null ) {
+            comunication.println( text );
+        } else {
+            setState ( "comunication == null "+text ) ;
+        }
     }
 }

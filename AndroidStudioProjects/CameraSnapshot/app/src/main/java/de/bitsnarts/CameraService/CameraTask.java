@@ -14,6 +14,8 @@ import android.hardware.camera2.params.OutputConfiguration;
 import android.hardware.camera2.params.SessionConfiguration;
 import android.opengl.GLES20;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.view.Surface;
@@ -29,6 +31,14 @@ public class CameraTask {
     private CameraDevice camera;
     private Vector<CameraTaskListener> listeners = new Vector<CameraTaskListener> () ;
     private CameraCaptureSession cameraCaptureSession;
+    private SurfaceTexture surfaceTexture;
+
+    class CaptureHandler extends Handler {
+
+        public void handleMessage(Message msg) {
+            println ( "handleMessage "+msg ) ;
+        }
+    }
 
     class Callback extends CameraCaptureSession.CaptureCallback {
 
@@ -55,7 +65,7 @@ public class CameraTask {
 
         @Override
         public void execute(@NonNull Runnable runnable) {
-            println ( "execute("+runnable+")" ) ;
+            //println ( "execute("+runnable+")" ) ;
             runnable.run();
         }
     }
@@ -66,21 +76,29 @@ public class CameraTask {
     void init () {
     }
 
-    @TargetApi(29)
-    @RequiresApi(api = Build.VERSION_CODES.P)
     public void setCamera(CameraDevice camera) {
+        println ( "set camera "+camera ) ;
         synchronized ( this ) {
             this.camera = camera ;
         }
-        println ( "set camera "+camera ) ;
+        if ( this.camera != null && surfaceTexture != null ) {
+            configure () ;
+        }
+    }
+
+    @TargetApi(29)
+    @RequiresApi(api = Build.VERSION_CODES.P)
+    private void configure() {
+        println ( "configure... " ) ;
         if ( camera == null ) {
             println ( "camera == null" ) ;
             return;
         }
-        println ( "startPreview" ) ;
+        println ( "configure2... " ) ;
         try {
             //int textureHandle[] = new int[1] ;
             //GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureHandle[0]);
+            /*
             SurfaceControl.Builder b = new SurfaceControl.Builder () ;
             b.setBufferSize( 200, 200 ) ;
             b.setFormat( PixelFormat.RGB_888 ) ;
@@ -89,6 +107,8 @@ public class CameraTask {
 
             //SurfaceTexture tex = new SurfaceTexture( sc ) ;
             Surface surface = new Surface( sc ) ;
+            */
+            Surface surface = new Surface( surfaceTexture ) ;
             OutputConfiguration outptConfig = new OutputConfiguration( surface ) ;
             Vector<OutputConfiguration> configs = new Vector<OutputConfiguration>();
             configs.add ( outptConfig ) ;
@@ -96,6 +116,16 @@ public class CameraTask {
             camera.createCaptureSession(config);
         } catch (CameraAccessException e) {
             e.printStackTrace();
+        }
+    }
+
+    public void setSurfaceTexture(SurfaceTexture surfaceTexture) {
+        println ( "setSurfaceTexture "+surfaceTexture ) ;
+        synchronized ( this ) {
+            this.surfaceTexture = surfaceTexture ;
+        }
+        if ( this.camera != null && surfaceTexture != null ) {
+            configure () ;
         }
     }
 
@@ -121,14 +151,19 @@ public class CameraTask {
     @TargetApi(Build.VERSION_CODES.P)
     @RequiresApi(api = Build.VERSION_CODES.N)
     public void startPreviev() throws CameraAccessException {
+        println ( "start preview ..." ) ;
         CameraCaptureSession session = null;;
         synchronized ( this ) {
             session = cameraCaptureSession ;
         }
         if ( session != null ) {
+            println ( "start preview2 ..." ) ;
             CaptureRequest.Builder builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW );
             CaptureRequest req = builder.build();
-            session.capture( req,  new Callback(),  null ) ;
+            //session.capture( req,  new Callback(),  ) ;
+            session.setRepeatingRequest( req, new Callback(), new CaptureHandler() ) ;
+        } else {
+            println ( "cannot start preview, session != null" ) ;
         }
 
     }

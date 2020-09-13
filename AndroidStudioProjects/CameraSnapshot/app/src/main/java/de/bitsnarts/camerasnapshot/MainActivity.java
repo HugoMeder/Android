@@ -6,8 +6,8 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.os.Build;
@@ -22,6 +22,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.TextureView;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -33,20 +34,45 @@ import java.io.CharArrayWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Set;
-import java.util.concurrent.Executor;
 
 import de.bitsnarts.BNASockets.BNAServerSocket;
 import de.bitsnarts.CameraService.Model.ServiceModel;
 import de.bitsnarts.CameraService.ServiceBinder;
 import de.bitsnarts.CameraService.ServiceImpl;
 import de.bitsnarts.CameraService.ServiceListener;
-import de.bitsnarts.CameraService.ServiceThread;
 
-public class MainActivity extends AppCompatActivity implements ServiceListener {
+public class MainActivity extends AppCompatActivity implements ServiceListener, TextureView.SurfaceTextureListener {
 
     private boolean cameraEventReceived;
     private CameraDevice camera;
+    private TextureView textureView;
+    private SurfaceTexture surfaceTexture;
+
+    MainActivity () {
+        super () ;
+        service = new ServiceImpl () ;
+    }
+
+    @Override
+    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+        textView.setText( "onSurfaceTextureAvailable");
+        surfaceReady ( textureView.getSurfaceTexture() ) ;
+    }
+
+    @Override
+    public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+
+    }
+
+    @Override
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+        return false;
+    }
+
+    @Override
+    public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+    }
 
     class CameraCallback extends CameraDevice.StateCallback {
 
@@ -128,6 +154,7 @@ public class MainActivity extends AppCompatActivity implements ServiceListener {
         if ( camera != null ) {
             service.setCamera( camera );
         }
+        service.start();
     }
 
     @TargetApi(Build.VERSION_CODES.P)
@@ -139,7 +166,10 @@ public class MainActivity extends AppCompatActivity implements ServiceListener {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         textView = (TextView) findViewById(R.id.textView);
+        textView.setBackgroundColor( 0xffffff00 );
 
+        textureView = (TextureView)findViewById(R.id.textureView);
+        textureView.setSurfaceTextureListener( this );
 
         textView.setText("onCreate");
 
@@ -185,12 +215,12 @@ public class MainActivity extends AppCompatActivity implements ServiceListener {
             textView.setText("internet denied");
         }
 
-        connection = new Connection () ;
+        /*connection = new Connection () ;
         Intent intent = new Intent(this,
                 ServiceImpl.class);
 
         boolean rv = bindService(intent, connection, Context.BIND_AUTO_CREATE);
-
+        */
 
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         textView.setText("cameraManager");
@@ -267,10 +297,12 @@ public class MainActivity extends AppCompatActivity implements ServiceListener {
 
     protected void onStart() {
         super.onStart();
-        if ( false ) {
+        if ( true ) {
             textView.setText( "onStart" );
             if ( service != null ) {
                 service.start();
+            } else {
+                textView.setText( "service == null" );
             }
         }
     }
@@ -341,6 +373,17 @@ public class MainActivity extends AppCompatActivity implements ServiceListener {
         return super.onOptionsItemSelected(item);
     }
 
+    private void surfaceReady(SurfaceTexture surfaceTexture) {
+        textView.setText( "setSurfaceTexture...") ;
+        synchronized ( this ) {
+            this.surfaceTexture = surfaceTexture ;
+        }
+        if ( service != null ) {
+            service.setSurfaceTexture ( surfaceTexture ) ;
+        } else {
+            textView.setText( "setSurfaceTexture not possible, service == null") ;
+        }
+    }
     void updateState () {
         textView.setText ( "state "+service.getState () ) ;
     }
