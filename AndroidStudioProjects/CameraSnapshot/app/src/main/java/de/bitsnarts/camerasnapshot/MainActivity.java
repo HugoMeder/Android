@@ -2,61 +2,97 @@ package de.bitsnarts.camerasnapshot;
 
 import android.Manifest;
 import android.annotation.TargetApi;
-import android.content.ComponentName;
-import android.content.Intent;
-import android.content.ServiceConnection;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.TotalCaptureResult;
+import android.hardware.camera2.params.OutputConfiguration;
+import android.hardware.camera2.params.SessionConfiguration;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.IBinder;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.content.Context;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import java.io.CharArrayWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.util.Vector;
+import java.util.concurrent.Executor;
 
-import de.bitsnarts.BNASockets.BNAServerSocket;
-import de.bitsnarts.CameraService.Model.ServiceModel;
-import de.bitsnarts.CameraService.ServiceBinder;
-import de.bitsnarts.CameraService.ServiceImpl;
-import de.bitsnarts.CameraService.ServiceListener;
+import de.bitsnarts.CameraService.CameraTask;
+import de.bitsnarts.android.utils.communication.BNAPrintlnService;
 
-public class MainActivity extends AppCompatActivity implements ServiceListener, TextureView.SurfaceTextureListener {
+import static android.hardware.camera2.params.SessionConfiguration.SESSION_REGULAR;
 
-    private boolean cameraEventReceived;
+public class MainActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener {
+
+    private CameraCaptureSession cameraCaptureSession;
     private CameraDevice camera;
     private TextureView textureView;
-    private SurfaceTexture surfaceTexture;
+    private boolean surfaceTextureAvailable;
+    private Surface targetSurface;
 
-    MainActivity () {
-        super () ;
-        service = new ServiceImpl () ;
+    class Callback extends CameraCaptureSession.CaptureCallback {
+
+        public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+
+        }
+    }
+
+    class CaptureHandler extends Handler {
+
+        public void handleMessage(Message msg) {
+            log ( "handleMessage "+msg ) ;
+        }
+    }
+
+
+    class StateCallback extends CameraCaptureSession.StateCallback {
+
+        @Override
+        public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+            log ( "onConfigured" ) ;
+            setCaptureSession ( cameraCaptureSession ) ;
+        }
+
+        @Override
+        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+            log ( "onConfigureFailed" ) ;
+        }
+    }
+
+    class Exec implements Executor {
+
+        @Override
+        public void execute(@NonNull Runnable runnable) {
+            //println ( "execute("+runnable+")" ) ;
+            runnable.run();
+        }
     }
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
-        textView.setText( "onSurfaceTextureAvailable");
-        surfaceReady ( textureView.getSurfaceTexture() ) ;
+        synchronized ( this ) {
+            surfaceTextureAvailable = true ;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            tryCameraConfig () ;
+        }
     }
 
     @Override
@@ -78,20 +114,21 @@ public class MainActivity extends AppCompatActivity implements ServiceListener, 
 
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
-            //textView.setText("onOpened");
-            cameraConnected ( cameraDevice ) ;
+            synchronized ( this ) {
+                camera = cameraDevice;
+            }
+            tryCameraConfig () ;
+            log ( "camera opened" ) ;
         }
 
         @Override
         public void onDisconnected(@NonNull CameraDevice cameraDevice) {
-            //textView.setText("onDisconnected");
-            cameraDisconnected ( cameraDevice ) ;
+            log ( "camera disconnected" ) ;
         }
 
         @Override
         public void onError(@NonNull CameraDevice cameraDevice, int i) {
-            //textView.setText("onError");
-            cameraError ( i ) ;
+            log ( "camera error, code "+i ) ;
         }
 
     }
@@ -106,127 +143,64 @@ public class MainActivity extends AppCompatActivity implements ServiceListener, 
 */
     }
 
-    Connection connection;
-    TextView textView;
-    ServiceModel service;
-    UpdateState us = new UpdateState();
-    CameraCallback cameraCallback = new CameraCallback () ;
-    CameraHandler cameraHandler = new CameraHandler () ;
+    static int nextInstanceNr ;
+    private final int instanceNr;
+    private TextView textView;
+    private static BNAPrintlnService println = new BNAPrintlnService() ;
+    private CameraCallback cameraCallback = new CameraCallback () ;
+    private CameraHandler cameraHandler = new CameraHandler () ;
 
-    class UpdateState implements Runnable {
-        public void run() {
-            updateState();
-        }
+    MainActivity () {
+        super () ;
+        this.instanceNr = nextInstanceNr++ ;
     }
 
-    class Connection implements ServiceConnection {
-
-        private ServiceModel service;
-
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            //textView.setText( "service connected!");
-            ServiceBinder b = (ServiceBinder) service;
-            this.service = b.getService();
-            //textView.setText( "service connected! serv "+this.service );
-            addListener();
-            //this.service.requestCallbacks();
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-
-        }
-
-        public ServiceModel getService() {
-            return service;
-        }
-    }
-
-    ;
-
-
-    void addListener() {
-        service = connection.service;
-        service.addServiceListener(this);
-        //textView.setText("listener added serv " + service + ", state " + service.getState());
-        //serviceThread.halt () ;
-        if ( camera != null ) {
-            service.setCamera( camera );
-        }
-        service.start();
+    private void log(String s) {
+        println.println( s );
     }
 
     @TargetApi(Build.VERSION_CODES.P)
-    @RequiresApi(api = Build.VERSION_CODES.M)
+    @RequiresApi(api = Build.VERSION_CODES.P)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
         textView = (TextView) findViewById(R.id.textView);
-        textView.setBackgroundColor( 0xffffff00 );
-
-        textureView = (TextureView)findViewById(R.id.textureView);
+        textView.setText ( "onCreate, instance "+instanceNr+"\nprintln-state="+println.getState() ) ;
+        log(  "onCreate, instance "+instanceNr+"\nprintln-state="+println.getState() );
+        getCamera () ;
+        textureView = (TextureView) findViewById(R.id.textureView);
         textureView.setSurfaceTextureListener( this );
+    }
 
-        textView.setText("onCreate");
+    @Override
+    protected void onStart() {
+        super.onStart();
+        log ( "onStart, instance "+instanceNr+"\nprintln-state="+println.getState() ) ;
+    }
 
-        requestPermissions(new String[]{
-                        Manifest.permission.INTERNET}
-                , 10);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        log ( "onResume, instance "+instanceNr+"\nprintln-state="+println.getState() ) ;
+    }
 
-        if (ContextCompat.checkSelfPermission(
-                MainActivity.this,
-                Manifest.permission.INTERNET)
-                == PackageManager.PERMISSION_GRANTED) {
-            textView.setText("intent");
+    @Override
+    protected void onPause() {
+        super.onPause();
+        log ( "onPause, instance "+instanceNr+"\nprintln-state="+println.getState() ) ;
+    }
 
-            FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+    @Override
+    protected void onStop() {
+        super.onStop();
+        log ( "onStop, instance "+instanceNr+"\nprintln-state="+println.getState() ) ;
+    }
 
-            fab.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    //Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                    //        .setAction("Action", null).show();
-                    //textView.setText("clicked");
-                    startPreview () ;
-                }
-
-            });
-
-            try {
-                BNAServerSocket ss = new BNAServerSocket(10);
-                /*
-
-                InetAddress addr = BNALookup.getAddress() ;
-                textView.setText( "addr "+addr );
-                */
-                if (false) {
-                    Socket s = ss.accept();
-                }
-
-            } catch (IOException e) {
-                textView.setText(e.toString());
-                e.printStackTrace();
-            }
-        } else {
-            textView.setText("internet denied");
-        }
-
-        /*connection = new Connection () ;
-        Intent intent = new Intent(this,
-                ServiceImpl.class);
-
-        boolean rv = bindService(intent, connection, Context.BIND_AUTO_CREATE);
-        */
-
-        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        textView.setText("cameraManager");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            getCamera();
-        }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        log ( "onDestroy, instance "+instanceNr+"\nprintln-state="+println.getState() ) ;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.P)
@@ -246,150 +220,62 @@ public class MainActivity extends AppCompatActivity implements ServiceListener, 
                     manager.openCamera(id, cameraCallback, cameraHandler );
             } catch (CameraAccessException e) {
                 e.printStackTrace();
-                textView.setText( e.toString() );
+                log( e.toString() );
             }
-            if ( camera != null )
-                textView.setText( "wir haben eine kamera!" );
-            else
-                textView.setText( "wir haben KEINE kamera!" );
         } else {
-            textView.setText( "camera not granted" );
+            log ( "camera not granted" );
         }
     }
 
-    private void cameraDisconnected(CameraDevice cameraDevice) {
-    }
-
-    private void startPreview() {
+    private void tryCameraConfig() {
+        synchronized ( this ) {
+            if ( camera == null || !surfaceTextureAvailable ) {
+                return  ;
+            }
+        }
+        log ( "configureCamera ..." ) ;
+        targetSurface = new Surface( textureView.getSurfaceTexture() ) ;
+        OutputConfiguration outptConfig = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            outptConfig = new OutputConfiguration( targetSurface );
+        }
+        Vector<OutputConfiguration> configs = new Vector<OutputConfiguration>();
+        configs.add ( outptConfig ) ;
+        SessionConfiguration config = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            config = new SessionConfiguration(  SESSION_REGULAR, configs, new Exec(), new StateCallback()  );
+        }
         try {
-            if ( service != null ) {
-                service.startPreview () ;
-            } else {
-                textView.setText( "service == null" );
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                camera.createCaptureSession(config);
             }
-        } catch (Exception e) {
-            textView.setText( e.toString() );
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
         }
+
     }
 
-    private void cameraConnected(CameraDevice cameraDevice) {
+    private void setCaptureSession(CameraCaptureSession cameraCaptureSession) {
         synchronized ( this ) {
-            this.camera = cameraDevice ;
-            textView.setText( "cameraConnected "+camera );
+            this.cameraCaptureSession = cameraCaptureSession ;
         }
-        if ( service != null ) {
-            service.setCamera ( cameraDevice ) ;
-        } else {
-            textView.setText( "cameraConnected, service == null" );
-        }
+        startCapture () ;
     }
 
-    private void cameraError( int error ) {
-    }
-
-    private void cameraEvent(Message msg) {
-        synchronized ( this ) {
-            cameraEventReceived = true ;
-            this.notifyAll();
-        }
-    }
-
-
-    protected void onStart() {
-        super.onStart();
-        if ( true ) {
-            textView.setText( "onStart" );
-            if ( service != null ) {
-                service.start();
-            } else {
-                textView.setText( "service == null" );
-            }
-        }
-    }
-
-    protected void onStop() {
-        super.onStop();
-        if ( service != null ) {
-            textView.setText( "onStop" );
-            service.halt () ;
-        }
-    }
-
-
-    // Function to check and request permission
-    public void checkPermission(String permission, int requestCode)
-    {
-
-        // Checking if permission is not granted
-        if (ContextCompat.checkSelfPermission(
-                MainActivity.this,
-                permission)
-                == PackageManager.PERMISSION_DENIED) {
-            ActivityCompat
-                    .requestPermissions(
-                            MainActivity.this,
-                            new String[] { permission },
-                            requestCode);
-        }
-        else {
-            Toast
-                    .makeText(MainActivity.this,
-                            "Permission already granted",
-                            Toast.LENGTH_SHORT)
-                    .show();
-        }
-    }
-
-    String exeptionToStr ( Throwable th ) {
-        CharArrayWriter cs = new CharArrayWriter () ;
-        try (PrintWriter pw = new PrintWriter(cs)) {
-            th.printStackTrace( pw );
-            pw.flush();
-            return cs.toString () ;
-        }
-    }
-
-
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+    private void startCapture() {
+        log ( "start capture..." ) ;
+        CaptureRequest.Builder builder = null;
+        try {
+            builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW );
+            builder.addTarget( targetSurface );
+            CaptureRequest req = builder.build();
+            //session.capture( req,  new Callback(),  ) ;
+            cameraCaptureSession.setRepeatingRequest( req, new Callback(), new CaptureHandler() ) ;
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
         }
 
-        return super.onOptionsItemSelected(item);
     }
 
-    private void surfaceReady(SurfaceTexture surfaceTexture) {
-        textView.setText( "setSurfaceTexture...") ;
-        synchronized ( this ) {
-            this.surfaceTexture = surfaceTexture ;
-        }
-        if ( service != null ) {
-            service.setSurfaceTexture ( surfaceTexture ) ;
-        } else {
-            textView.setText( "setSurfaceTexture not possible, service == null") ;
-        }
-    }
-    void updateState () {
-        textView.setText ( "state "+service.getState () ) ;
-    }
 
-    @Override
-    public void stateChanged ( ServiceModel service ) {
-        runOnUiThread ( us ) ;
-    }
 }

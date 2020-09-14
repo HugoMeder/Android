@@ -1,4 +1,4 @@
-package de.bitsnarts.BNASockets;
+package de.bitsnarts.android.utils.communication;
 
 import java.io.Closeable;
 import java.io.DataOutputStream;
@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+
+import de.bitsnarts.BNASockets.Globals;
 
 public class BNAClientSocket implements Closeable {
 

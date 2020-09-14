@@ -1,23 +1,14 @@
 package de.bitsnarts.CameraService;
 
-import android.Manifest;
-import android.support.v4.app.ActivityCompat;
-
 import java.io.CharArrayWriter;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Vector;
 
-import de.bitsnarts.BNASockets.BNALookup;
-import de.bitsnarts.BNASockets.BNAServerSocket;
-
-import static android.Manifest.permission.INTERNET;
-import static android.support.v4.app.ActivityCompat.requestPermissions;
+import de.bitsnarts.android.utils.communication.BNALookup;
+import de.bitsnarts.android.utils.communication.BNAServerSocket;
 
 public class CommunicationThread implements Runnable {
 

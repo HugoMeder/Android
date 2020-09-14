@@ -3,7 +3,7 @@
     android:targetSandboxVersion="1"
     package="de.bitsnarts.camerasnapshot">
 
-    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CAMERA" android:required="true"/>
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
