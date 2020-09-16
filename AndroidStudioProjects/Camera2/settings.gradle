@@ -1,0 +1,1 @@
+include ':Camera2', ':app', ':base', ':instantapp'

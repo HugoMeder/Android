@@ -1,4 +1,4 @@
-package de.bitsnarts.BNASockets;
+package de.bitsnarts.android.utils.communication;
 
 public class Globals {
 

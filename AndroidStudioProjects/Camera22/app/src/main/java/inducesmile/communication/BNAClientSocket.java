@@ -1,4 +1,4 @@
-package de.bitsnarts.android.utils.communication;
+package inducesmile.communication;
 
 import java.io.Closeable;
 import java.io.DataOutputStream;
