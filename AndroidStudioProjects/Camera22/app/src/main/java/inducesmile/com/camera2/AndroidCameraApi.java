@@ -63,7 +63,7 @@ public class AndroidCameraApi extends AppCompatActivity {
     }
     private String cameraId;
     protected CameraDevice cameraDevice;
-    protected CameraCaptureSession cameraCaptureSessions;
+    protected CameraCaptureSession previewCameraCaptureSession;
     protected CaptureRequest captureRequest;
     protected CaptureRequest.Builder captureRequestBuilder;
     private Size imageDimension;
@@ -98,6 +98,7 @@ public class AndroidCameraApi extends AppCompatActivity {
                         buffer.get( bytes ) ;
                         if ( bytes != null ) {
                             log("buffer length "+bytes.length );
+                            updatePreview () ;
                         } else {
                             log ( "bytes == null" ) ;
                         }
@@ -332,7 +333,7 @@ public class AndroidCameraApi extends AppCompatActivity {
                         return;
                     }
                     // When the session is ready, we start displaying the preview.
-                    cameraCaptureSessions = cameraCaptureSession;
+                    previewCameraCaptureSession = cameraCaptureSession;
                     updatePreview();
                 }
                 @Override
@@ -379,9 +380,10 @@ public class AndroidCameraApi extends AppCompatActivity {
         if(null == cameraDevice) {
             Log.e(TAG, "updatePreview error, return");
         }
-        captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+       captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
         try {
-            cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
+            //cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
+            previewCameraCaptureSession.capture( captureRequestBuilder.build(), null, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -410,18 +412,19 @@ public class AndroidCameraApi extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         Log.e(TAG, "onResume");
-        startBackgroundThread();
+        //startBackgroundThread();
+        /*
         if (textureView.isAvailable()) {
             openCamera();
         } else {
             textureView.setSurfaceTextureListener(textureListener);
-        }
+        }*/
     }
     @Override
     protected void onPause() {
         Log.e(TAG, "onPause");
         //closeCamera();
-        stopBackgroundThread();
+        //stopBackgroundThread();
         super.onPause();
     }
 }
