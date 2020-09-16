@@ -40,6 +40,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Vector;
 
 import inducesmile.communication.BNAPrintlnService;
 import inducesmile.communication.LogUtils;
@@ -72,7 +73,48 @@ public class AndroidCameraApi extends AppCompatActivity {
     private boolean mFlashSupported;
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
+    private Size jpegPreviewSize;
+    private ImageReader previewImageReader;
 
+    class PreviewAvailableListener implements ImageReader.OnImageAvailableListener {
+
+        @Override
+        public void onImageAvailable(ImageReader imageReader) {
+            //log("onImageAvailable...");
+            try {
+                Image img = imageReader.acquireLatestImage();
+                if ( img != null ) {
+                    //log("preview img != null");
+                    Image.Plane planes = img.getPlanes()[0];;
+                    if ( planes == null ) {
+                        //log ( "planes==null" ) ;
+                        img.close () ;
+                        return ;
+                    }
+                    ByteBuffer buffer = planes.getBuffer() ;
+                    if ( buffer != null ) {
+                        //log("buffer != null");
+                        byte[] bytes = new byte[buffer.capacity()];
+                        buffer.get( bytes ) ;
+                        if ( bytes != null ) {
+                            log("buffer length "+bytes.length );
+                        } else {
+                            log ( "bytes == null" ) ;
+                        }
+                    } else {
+                        log ( "buffer == null" ) ;
+                    }
+                    //log("img.close ...");
+                    img.close();
+                    //log("img.closed");
+                }
+                else
+                    log ( "preview img == null" ) ;
+            } catch ( Throwable th ) {
+                log ( LogUtils.exeptionToStr( th ) ) ;
+            }
+        }
+    }
     class LogStub {
         void e ( String tag, String txt ) {
             log.println( "Log "+tag+" "+txt );
@@ -118,16 +160,21 @@ public class AndroidCameraApi extends AppCompatActivity {
         public void onOpened(CameraDevice camera) {
             //This is called when the camera is open
             //Log.e(TAG, "onOpened");
+            log ( "onOpened" ) ;
             cameraDevice = camera;
             createCameraPreview();
         }
         @Override
         public void onDisconnected(CameraDevice camera) {
-            cameraDevice.close();
+            log ( "onDisconnected" ) ;
+            camera.close();
+            cameraDevice = null;
         }
         @Override
         public void onError(CameraDevice camera, int error) {
-            cameraDevice.close();
+            log ( "onError" ) ;
+            if ( camera != null )
+                camera.close();
             cameraDevice = null;
         }
     };
@@ -260,16 +307,27 @@ public class AndroidCameraApi extends AppCompatActivity {
 
     protected void createCameraPreview() {
         try {
+            log ( "createCameraPreview..." ) ;
             SurfaceTexture texture = textureView.getSurfaceTexture();
             assert texture != null;
             texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
             Surface surface = new Surface(texture);
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
-            cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback(){
-                @Override
+            if ( jpegPreviewSize != null ) {
+                previewImageReader = ImageReader.newInstance ( jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight(), ImageFormat.JPEG, 10 ) ;
+                previewImageReader.setOnImageAvailableListener( new PreviewAvailableListener(), null );
+                captureRequestBuilder.addTarget(previewImageReader.getSurface());
+            }
+            Vector<Surface> targets = new Vector<Surface>() ;
+            targets.add( surface ) ;
+            if ( previewImageReader != null ) {
+                targets.add( previewImageReader.getSurface() ) ;
+            }
+            log ( "createCaptureSession..." ) ;
+            cameraDevice.createCaptureSession( targets, new CameraCaptureSession.StateCallback(){@Override
                 public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    //The camera is already closed
+                    log ( "onConfigured" ) ;
                     if (null == cameraDevice) {
                         return;
                     }
@@ -282,7 +340,9 @@ public class AndroidCameraApi extends AppCompatActivity {
                     Toast.makeText(AndroidCameraApi.this, "Configuration change", Toast.LENGTH_SHORT).show();
                 }
             }, null);
-        } catch (CameraAccessException e) {
+            log ( "createCaptureSession, done" ) ;
+        } catch (Throwable e) {
+            log ( LogUtils.exeptionToStr( e ) ) ;
             e.printStackTrace();
         }
     }
@@ -294,6 +354,15 @@ public class AndroidCameraApi extends AppCompatActivity {
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             assert map != null;
+            Size[] outSizes = map.getOutputSizes( ImageFormat.JPEG );
+            if ( outSizes != null ) {
+                log ( "Output-Sizes" ) ;
+                for ( Size s : outSizes ) {
+                    log ( "\t"+s.getWidth()+" "+s.getHeight() ) ;
+                }
+                jpegPreviewSize = outSizes[outSizes.length-1] ;
+            }
+
             imageDimension = map.getOutputSizes(SurfaceTexture.class)[0];
             // Add permission for camera and let user grant the permission
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
