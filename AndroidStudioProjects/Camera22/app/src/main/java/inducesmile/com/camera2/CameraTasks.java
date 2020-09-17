@@ -9,4 +9,5 @@ public interface CameraTasks {
     void startPreview () ;
     void setPreviewTexture( TextureView texturView);
     void openCamera();
+    void log(String s);
 }

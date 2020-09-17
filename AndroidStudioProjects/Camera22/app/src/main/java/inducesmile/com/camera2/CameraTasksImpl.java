@@ -51,6 +51,7 @@ import static android.os.Environment.DIRECTORY_PICTURES;
 
 public class CameraTasksImpl implements CameraTasks {
     private static final String TAG = "AndroidCameraApi";
+    private CommunicationThread comunication ;
     private static BNAPrintlnService log = new BNAPrintlnService () ;
     private LogStub Log = new LogStub () ;
 
@@ -78,25 +79,41 @@ public class CameraTasksImpl implements CameraTasks {
     private Size jpegPreviewSize;
     private ImageReader previewImageReader;
     private AppCompatActivity activity;
+    private boolean repeatingPreviewCapture = false ;
+    private PreviewCaptureCallback previewCaptureCallback = new PreviewCaptureCallback () ;
+
+    CameraTasksImpl () {
+        //comunication = new CommunicationThread( this ) ;
+        //comunication.println( "Hello from CameraTasksImpl");
+    }
+
+    class PreviewCaptureCallback extends CameraCaptureSession.CaptureCallback {
+        public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+            log ( "onCaptureCompleted" ) ;
+            if ( !repeatingPreviewCapture )
+                updatePreview () ;
+        }
+
+    }
 
     class PreviewAvailableListener implements ImageReader.OnImageAvailableListener {
 
         @Override
         public void onImageAvailable(ImageReader imageReader) {
-            //log("onImageAvailable...");
+            log("onImageAvailable...");
             try {
                 Image img = imageReader.acquireLatestImage();
                 if ( img != null ) {
-                    //log("preview img != null");
+                    log("preview img != null");
                     Image.Plane planes = img.getPlanes()[0];;
                     if ( planes == null ) {
-                        //log ( "planes==null" ) ;
+                        log ( "planes==null" ) ;
                         img.close () ;
                         return ;
                     }
                     ByteBuffer buffer = planes.getBuffer() ;
                     if ( buffer != null ) {
-                        //log("buffer != null");
+                        log("buffer != null");
                         byte[] bytes = new byte[buffer.capacity()];
                         buffer.get( bytes ) ;
                         if ( bytes != null ) {
@@ -108,9 +125,9 @@ public class CameraTasksImpl implements CameraTasks {
                     } else {
                         log ( "buffer == null" ) ;
                     }
-                    //log("img.close ...");
+                    log("img.close ...");
                     img.close();
-                    //log("img.closed");
+                    log("img.closed");
                 }
                 else
                     log ( "preview img == null" ) ;
@@ -312,7 +329,8 @@ public class CameraTasksImpl implements CameraTasks {
         }
     }
 
-    private void log(String s) {
+    @Override
+    public void log(String s) {
         log.println( s );
     }
 
@@ -327,9 +345,12 @@ public class CameraTasksImpl implements CameraTasks {
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
             if ( jpegPreviewSize != null ) {
+                log ( "jpegPreviewSize "+jpegPreviewSize.getWidth()+"x"+jpegPreviewSize.getHeight() ) ;
                 previewImageReader = ImageReader.newInstance ( jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight(), ImageFormat.JPEG, 10 ) ;
                 previewImageReader.setOnImageAvailableListener( new PreviewAvailableListener(), null );
                 captureRequestBuilder.addTarget(previewImageReader.getSurface());
+            } else {
+                log ( "no ImageReader installed" ) ;
             }
             Vector<Surface> targets = new Vector<Surface>() ;
             targets.add( surface ) ;
@@ -339,8 +360,9 @@ public class CameraTasksImpl implements CameraTasks {
             log ( "createCaptureSession..." ) ;
             cameraDevice.createCaptureSession( targets, new CameraCaptureSession.StateCallback(){@Override
                 public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    log ( "onConfigured" ) ;
+                log ( "onConfigured(preview)" ) ;
                     if (null == cameraDevice) {
+                        log ( "null == cameraDevice" ) ;
                         return;
                     }
                     // When the session is ready, we start displaying the preview.
@@ -393,8 +415,10 @@ public class CameraTasksImpl implements CameraTasks {
         }
        captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
         try {
-            //cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
-            previewCameraCaptureSession.capture( captureRequestBuilder.build(), null, mBackgroundHandler);
+            if ( repeatingPreviewCapture )
+                previewCameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, /*mBackgroundHandler*/ null );
+            else
+                previewCameraCaptureSession.capture( captureRequestBuilder.build(), previewCaptureCallback, /*mBackgroundHandler*/ null );
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }

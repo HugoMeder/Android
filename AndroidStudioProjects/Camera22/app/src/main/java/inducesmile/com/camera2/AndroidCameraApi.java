@@ -11,14 +11,15 @@ public class AndroidCameraApi extends AppCompatActivity implements TextureView.S
 
     static CameraTasks cameraTasks = new CameraTasksImpl () ;
     private TextureView textureView;
-            //log("onImageAvailable...");
-            try {
-                Image img = imageReader.acquireLatestImage();
-                if ( img != null ) {
-                    //log("preview img != null");
-                    Image.Plane planes = img.getPlanes()[0];;
-                        //log("buffer != null");
 
+    class SC implements Runnable {
+
+        @Override
+        public void run() {
+            cameraTasks.setPreviewTexture( textureView ) ;
+            cameraTasks.openCamera () ;
+        }
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -42,8 +43,7 @@ public class AndroidCameraApi extends AppCompatActivity implements TextureView.S
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
-        cameraTasks.setPreviewTexture( textureView ) ;
-        cameraTasks.openCamera () ;
+        runOnUiThread( new SC() );
     }
 
     @Override
