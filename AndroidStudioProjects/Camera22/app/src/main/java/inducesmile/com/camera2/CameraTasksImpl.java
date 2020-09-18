@@ -50,7 +50,6 @@ import static android.os.Environment.DIRECTORY_PICTURES;
 // import android.util.Log;
 
 public class CameraTasksImpl implements CameraTasks {
-    private static final String TAG = "AndroidCameraApi";
     private CommunicationThread comunication ;
     private static BNAPrintlnService log = new BNAPrintlnService () ;
     private LogStub Log = new LogStub () ;
@@ -79,19 +78,19 @@ public class CameraTasksImpl implements CameraTasks {
     private Size jpegPreviewSize;
     private ImageReader previewImageReader;
     private AppCompatActivity activity;
-    private boolean repeatingPreviewCapture = false ;
+    private boolean repeatingPreviewCapture = true ;
     private PreviewCaptureCallback previewCaptureCallback = new PreviewCaptureCallback () ;
 
     CameraTasksImpl () {
-        //comunication = new CommunicationThread( this ) ;
-        //comunication.println( "Hello from CameraTasksImpl");
+        comunication = new CommunicationThread( this ) ;
+        comunication.println( "Hello from CameraTasksImpl");
     }
 
     class PreviewCaptureCallback extends CameraCaptureSession.CaptureCallback {
         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
-            log ( "onCaptureCompleted" ) ;
-            if ( !repeatingPreviewCapture )
-                updatePreview () ;
+            //log ( "onCaptureCompleted" ) ;
+            //if ( !repeatingPreviewCapture )
+                //updatePreview () ;
         }
 
     }
@@ -100,11 +99,11 @@ public class CameraTasksImpl implements CameraTasks {
 
         @Override
         public void onImageAvailable(ImageReader imageReader) {
-            log("onImageAvailable...");
+            //log("onImageAvailable...!");
             try {
                 Image img = imageReader.acquireLatestImage();
                 if ( img != null ) {
-                    log("preview img != null");
+                    //log("preview img != null");
                     Image.Plane planes = img.getPlanes()[0];;
                     if ( planes == null ) {
                         log ( "planes==null" ) ;
@@ -113,21 +112,23 @@ public class CameraTasksImpl implements CameraTasks {
                     }
                     ByteBuffer buffer = planes.getBuffer() ;
                     if ( buffer != null ) {
-                        log("buffer != null");
+                        //log("buffer != null");
                         byte[] bytes = new byte[buffer.capacity()];
                         buffer.get( bytes ) ;
                         if ( bytes != null ) {
-                            log("buffer length "+bytes.length );
-                            updatePreview () ;
+                            //log("buffer length "+bytes.length );
+                            comunication.previewImage( jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight(), bytes );
+                            //comunication.flush();
+                            //updatePreview () ;
                         } else {
                             log ( "bytes == null" ) ;
                         }
                     } else {
                         log ( "buffer == null" ) ;
                     }
-                    log("img.close ...");
+                    //log("img.close ...");
                     img.close();
-                    log("img.closed");
+                    //log("img.closed");
                 }
                 else
                     log ( "preview img == null" ) ;
@@ -232,7 +233,7 @@ public class CameraTasksImpl implements CameraTasks {
 
     protected void takePicture() {
         if(null == cameraDevice) {
-            Log.e(TAG, "cameraDevice is null");
+            log ("cameraDevice is null");
             return;
         }
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
@@ -382,7 +383,7 @@ public class CameraTasksImpl implements CameraTasks {
     }
     public void openCamera() {
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
-        Log.e(TAG, "is camera open");
+        log ( "is camera open");
         try {
             cameraId = manager.getCameraIdList()[0];
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
@@ -391,8 +392,9 @@ public class CameraTasksImpl implements CameraTasks {
             Size[] outSizes = map.getOutputSizes( ImageFormat.JPEG );
             if ( outSizes != null ) {
                 log ( "Output-Sizes" ) ;
+                int index = 0 ;
                 for ( Size s : outSizes ) {
-                    log ( "\t"+s.getWidth()+" "+s.getHeight() ) ;
+                    log ( "\t"+(index++)+" "+s.getWidth()+" "+s.getHeight() ) ;
                 }
                 jpegPreviewSize = outSizes[outSizes.length-1] ;
             }
@@ -407,11 +409,12 @@ public class CameraTasksImpl implements CameraTasks {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-        Log.e(TAG, "openCamera X");
+        log ( "openCamera X");
     }
+
     protected void updatePreview() {
         if(null == cameraDevice) {
-            Log.e(TAG, "updatePreview error, return");
+            log ( "updatePreview error, return");
         }
        captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
         try {

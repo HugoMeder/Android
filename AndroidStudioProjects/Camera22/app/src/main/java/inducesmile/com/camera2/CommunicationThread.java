@@ -2,6 +2,7 @@ package inducesmile.com.camera2;
 
 import java.io.CharArrayWriter;
 import java.io.DataInputStream;
+import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -21,9 +22,51 @@ public class CommunicationThread implements Runnable {
     private boolean ended;
     private BNAServerSocket ss;
     private Socket s ;
-    private Vector<String> printlns = new Vector<String> () ;
+    private Vector<OutMessage> outQueue = new Vector<OutMessage> () ;
     private Object sendMonitor = new Object () ;
-    private boolean sendData ;
+    private int previewFramesInQueue ;
+
+    abstract class OutMessage {
+        abstract void write (DataOutput out ) throws IOException;
+    }
+
+    class Println extends OutMessage {
+        String line ;
+        Println ( String line ) {
+            this.line = line ;
+        }
+
+        @Override
+        void write(DataOutput dout) throws IOException {
+            dout.writeInt ( ServiceToClientCmds.PRINTLN.getCode() ) ;
+            dout.writeUTF ( line ) ;
+        }
+    }
+
+    class Preview extends OutMessage {
+        private int width;
+        private int height;
+        private byte[] data;
+
+
+        Preview ( int width, int height, byte[] data ) {
+            this.width = width ;
+            this.height = height ;
+            this.data = data ;
+        }
+
+        @Override
+        void write(DataOutput dout) throws IOException {
+            dout.writeInt ( ServiceToClientCmds.PREVIEW.getCode() ) ;
+            dout.writeInt( width );
+            dout.writeInt( height );
+            dout.writeInt( data.length );
+            dout.write ( data ) ;
+            synchronized ( outQueue ) {
+                previewFramesInQueue-- ;
+            }
+        }
+    }
 
     class SendThread implements Runnable {
 
@@ -33,28 +76,22 @@ public class CommunicationThread implements Runnable {
             try {
                 dout = new DataOutputStream( s.getOutputStream() );
                 for(;;) {
+                    OutMessage msg ;
                     synchronized ( sendMonitor ) {
-                        while ( !sendData ) {
+                        while ( outQueue.size() == 0 ) {
                             try {
                                 sendMonitor.wait();
                             } catch (InterruptedException e) {
                             }
                         }
-                        for ( String s : printlns ) {
-                            try {
-                                dout.writeInt ( ServiceToClientCmds.PRINTLN.getCode() ) ;
-                                dout.writeUTF ( s ) ;
-                            } catch ( Throwable e) {
-                                log( e.toString() );
-                            }
-                        }
-                        printlns.clear();
-                        sendData = false ;
+                        msg = outQueue.get ( 0 ) ;
+                        outQueue.removeElementAt( 0 );
                         synchronized ( CommunicationThread.this ) {
                             if ( !running )
                                 return ;
                         }
                     }
+                    msg.write( dout );
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -82,7 +119,6 @@ public class CommunicationThread implements Runnable {
 
     void notifySend () {
         synchronized ( sendMonitor ) {
-            sendData = true ;
             sendMonitor.notifyAll();
         }
     }
@@ -182,7 +218,6 @@ public class CommunicationThread implements Runnable {
             */
         }
         synchronized ( sendMonitor ) {
-            sendData = true ;
             sendMonitor.notifyAll();
         }
     }
@@ -200,9 +235,31 @@ public class CommunicationThread implements Runnable {
     void println ( String text ) {
         if ( text == null )
             return ;
+        Println pl = new Println ( text ) ;
         synchronized ( sendMonitor ) {
-            printlns.add( text ) ;
+            outQueue.add( pl ) ;
             notifySend() ;
+        }
+    }
+
+    void previewImage ( int width, int height, byte data[] ) {
+        Preview pw = new Preview ( width, height, data ) ;
+        synchronized ( sendMonitor ) {
+            if ( previewFramesInQueue > 10 )
+                return ;
+            outQueue.add( pw ) ;
+            notifySend() ;
+        }
+    }
+
+    void flush () {
+        synchronized ( outQueue ) {
+            while ( outQueue.size() != 0 ) {
+                try {
+                    outQueue.wait();
+                } catch (InterruptedException e) {
+                }
+            }
         }
     }
 }

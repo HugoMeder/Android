@@ -3,7 +3,7 @@ package inducesmile.com.camera2;
 import java.util.TreeMap;
 
 public enum ServiceToClientCmds {
-	PRINTLN(1) ;
+	PRINTLN(1), PREVIEW(2) ;
 	
 	static TreeMap<Integer,ServiceToClientCmds> cmdsByCode ;
 	
