@@ -44,24 +44,22 @@ public class CommunicationThread implements Runnable {
     }
 
     class Preview extends OutMessage {
-        private int width;
-        private int height;
-        private byte[] data;
 
 
-        Preview ( int width, int height, byte[] data ) {
-            this.width = width ;
-            this.height = height ;
-            this.data = data ;
+        private final FrameBufferQueue.JPegFrameBuffer buf;
+
+        public Preview(FrameBufferQueue.JPegFrameBuffer buf) {
+            this.buf = buf ;
         }
 
         @Override
         void write(DataOutput dout) throws IOException {
             dout.writeInt ( ServiceToClientCmds.PREVIEW.getCode() ) ;
-            dout.writeInt( width );
-            dout.writeInt( height );
-            dout.writeInt( data.length );
-            dout.write ( data ) ;
+            dout.writeInt( buf.getWidht() );
+            dout.writeInt( buf.getHeight() );
+            dout.writeInt( buf.getBufferSizes() );
+            dout.write ( buf.getBuffer(), 0, buf.getBufferSizes() ) ;
+            buf.release();
             synchronized ( outQueue ) {
                 previewFramesInQueue-- ;
             }
@@ -242,15 +240,19 @@ public class CommunicationThread implements Runnable {
         }
     }
 
-    void previewImage ( int width, int height, byte data[] ) {
-        Preview pw = new Preview ( width, height, data ) ;
+    public void previewImage(FrameBufferQueue.JPegFrameBuffer buf) {
+        Preview pw = new Preview ( buf ) ;
         synchronized ( sendMonitor ) {
-            if ( previewFramesInQueue > 10 )
-                return ;
+            if ( previewFramesInQueue > 10 ) {
+                buf.release();
+                return;
+            }
+            previewFramesInQueue++ ;
             outQueue.add( pw ) ;
             notifySend() ;
         }
     }
+
 
     void flush () {
         synchronized ( outQueue ) {

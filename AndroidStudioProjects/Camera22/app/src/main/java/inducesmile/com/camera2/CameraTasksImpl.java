@@ -45,6 +45,7 @@ import java.util.Vector;
 import inducesmile.communication.BNAPrintlnService;
 import inducesmile.communication.LogUtils;
 
+import android.util.Log;
 import static android.os.Environment.DIRECTORY_PICTURES;
 
 // import android.util.Log;
@@ -52,7 +53,7 @@ import static android.os.Environment.DIRECTORY_PICTURES;
 public class CameraTasksImpl implements CameraTasks {
     private CommunicationThread comunication ;
     private static BNAPrintlnService log = new BNAPrintlnService () ;
-    private LogStub Log = new LogStub () ;
+    //private LogStub Log = new LogStub () ;
 
     private Button takePictureButton;
     private TextureView textureView;
@@ -79,6 +80,9 @@ public class CameraTasksImpl implements CameraTasks {
     private ImageReader previewImageReader;
     private AppCompatActivity activity;
     private boolean repeatingPreviewCapture = true ;
+    private boolean useTextureView = true ;
+    private FrameBufferQueue previewBuffer = new FrameBufferQueue () ;
+
     private PreviewCaptureCallback previewCaptureCallback = new PreviewCaptureCallback () ;
 
     CameraTasksImpl () {
@@ -111,18 +115,14 @@ public class CameraTasksImpl implements CameraTasks {
                         return ;
                     }
                     ByteBuffer buffer = planes.getBuffer() ;
+                    int bl = buffer.capacity() ;
                     if ( buffer != null ) {
-                        //log("buffer != null");
-                        byte[] bytes = new byte[buffer.capacity()];
-                        buffer.get( bytes ) ;
-                        if ( bytes != null ) {
-                            //log("buffer length "+bytes.length );
-                            comunication.previewImage( jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight(), bytes );
-                            //comunication.flush();
-                            //updatePreview () ;
-                        } else {
-                            log ( "bytes == null" ) ;
-                        }
+                        log("get buffer,  length "+bl );
+                        FrameBufferQueue.JPegFrameBuffer buf = previewBuffer.getBuffer(bl, jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight());;
+                        byte[] bytes = buf.getBuffer() ;
+                        buffer.get( bytes, 0, bl ) ;
+                        log("buffer length "+bl );
+                        comunication.previewImage( buf );
                     } else {
                         log ( "buffer == null" ) ;
                     }
@@ -179,9 +179,11 @@ public class CameraTasksImpl implements CameraTasks {
         }
         @Override
         public void onError(CameraDevice camera, int error) {
-            log ( "onError" ) ;
-            if ( camera != null )
+            log ( "CameraDevice.StateCallback: onError" ) ;
+            if ( camera != null ) {
+                log ( "close camera ..." ) ;
                 camera.close();
+            }
             cameraDevice = null;
         }
     };
@@ -332,7 +334,7 @@ public class CameraTasksImpl implements CameraTasks {
 
     @Override
     public void log(String s) {
-        log.println( s );
+        Log.i ( "CameraTasksImpl",s ) ; //log.println( s );
     }
 
 
@@ -344,7 +346,8 @@ public class CameraTasksImpl implements CameraTasks {
             texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
             Surface surface = new Surface(texture);
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            captureRequestBuilder.addTarget(surface);
+            if ( useTextureView  )
+                captureRequestBuilder.addTarget(surface);
             if ( jpegPreviewSize != null ) {
                 log ( "jpegPreviewSize "+jpegPreviewSize.getWidth()+"x"+jpegPreviewSize.getHeight() ) ;
                 previewImageReader = ImageReader.newInstance ( jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight(), ImageFormat.JPEG, 10 ) ;
@@ -354,7 +357,8 @@ public class CameraTasksImpl implements CameraTasks {
                 log ( "no ImageReader installed" ) ;
             }
             Vector<Surface> targets = new Vector<Surface>() ;
-            targets.add( surface ) ;
+            if ( useTextureView )
+                targets.add( surface ) ;
             if ( previewImageReader != null ) {
                 targets.add( previewImageReader.getSurface() ) ;
             }
