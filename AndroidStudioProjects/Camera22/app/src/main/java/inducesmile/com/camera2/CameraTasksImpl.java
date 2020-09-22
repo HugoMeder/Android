@@ -105,7 +105,8 @@ public class CameraTasksImpl implements CameraTasks {
         public void onImageAvailable(ImageReader imageReader) {
             //log("onImageAvailable...!");
             try {
-                Image img = imageReader.acquireLatestImage();
+                //Image img = imageReader.acquireLatestImage();
+                Image img = imageReader.acquireNextImage() ;
                 if ( img != null ) {
                     //log("preview img != null");
                     Image.Plane planes = img.getPlanes()[0];;
@@ -361,6 +362,7 @@ public class CameraTasksImpl implements CameraTasks {
                 targets.add( surface ) ;
             if ( previewImageReader != null ) {
                 targets.add( previewImageReader.getSurface() ) ;
+                log ( "previewImageReader added" ) ;
             }
             log ( "createCaptureSession..." ) ;
             cameraDevice.createCaptureSession( targets, new CameraCaptureSession.StateCallback(){@Override
