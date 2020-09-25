@@ -25,6 +25,7 @@ public class CommunicationThread implements Runnable {
     private Vector<OutMessage> outQueue = new Vector<OutMessage> () ;
     private Object sendMonitor = new Object () ;
     private int previewFramesInQueue ;
+    private int imageFramesInQueue ;
 
     abstract class OutMessage {
         abstract void write (DataOutput out ) throws IOException;
@@ -65,6 +66,30 @@ public class CommunicationThread implements Runnable {
             }
         }
     }
+
+    class Image extends OutMessage {
+
+
+        private final FrameBufferQueue.JPegFrameBuffer buf;
+
+        public Image(FrameBufferQueue.JPegFrameBuffer buf) {
+            this.buf = buf ;
+        }
+
+        @Override
+        void write(DataOutput dout) throws IOException {
+            dout.writeInt ( ServiceToClientCmds.IMAGE.getCode() ) ;
+            dout.writeInt( buf.getWidht() );
+            dout.writeInt( buf.getHeight() );
+            dout.writeInt( buf.getBufferSizes() );
+            dout.write ( buf.getBuffer(), 0, buf.getBufferSizes() ) ;
+            buf.release();
+            synchronized ( outQueue ) {
+                imageFramesInQueue-- ;
+            }
+        }
+    }
+
 
     class SendThread implements Runnable {
 
@@ -165,6 +190,9 @@ public class CommunicationThread implements Runnable {
                     for (;;) {
                         int cmd = in.readInt () ;
                         log( "cmd="+cmd ) ;
+                        if ( cmd == 1 )
+                            service.takePicture();
+
                         if ( !running ) {
                             s.close();
                             log("halted ");
@@ -249,6 +277,19 @@ public class CommunicationThread implements Runnable {
             }
             previewFramesInQueue++ ;
             outQueue.add( pw ) ;
+            notifySend() ;
+        }
+    }
+
+    public void image(FrameBufferQueue.JPegFrameBuffer buf) {
+        Image img = new Image ( buf ) ;
+        synchronized ( sendMonitor ) {
+            if ( imageFramesInQueue > 1 ) {
+                buf.release();
+                return;
+            }
+            imageFramesInQueue++ ;
+            outQueue.add( img ) ;
             notifySend() ;
         }
     }

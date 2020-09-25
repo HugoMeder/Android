@@ -86,6 +86,7 @@ public class CameraTasksImpl implements CameraTasks {
     private boolean repeatingPreviewCapture = true;
     private boolean useTextureView = true;
     private FrameBufferQueue previewBuffer = new FrameBufferQueue();
+    private FrameBufferQueue imageBuffer = new FrameBufferQueue();
 
     private PreviewCaptureCallback previewCaptureCallback = new PreviewCaptureCallback();
 
@@ -116,7 +117,7 @@ public class CameraTasksImpl implements CameraTasks {
 
     CameraTasksImpl() {
         comunication = new CommunicationThread(this);
-        int vers = 10;
+        int vers = 12;
         comunication.println("Hello from CameraTasksImpl, " + vers);
         log("Hello from CameraTasksImpl, " + vers);
         startBackgroundThread();
@@ -190,7 +191,7 @@ public class CameraTasksImpl implements CameraTasks {
                     int bl = buffer.capacity() ;
                     if ( buffer != null ) {
                         log("get buffer,  length "+bl );
-                        FrameBufferQueue.JPegFrameBuffer buf = previewBuffer.getBuffer(bl, jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight());;
+                        FrameBufferQueue.JPegFrameBuffer buf = previewBuffer.getBuffer(bl, jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight());
                         byte[] bytes = buf.getBuffer() ;
                         buffer.get( bytes, 0, bl ) ;
                         log("buffer length "+bl );
@@ -346,25 +347,19 @@ public class CameraTasksImpl implements CameraTasks {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
                     Image image = null;
-                    try {
-                        image = reader.acquireLatestImage();
-                        log ( "acquireLatestImage "+image ) ;
-                        //MediaStore.Images.Media.insertImage ( getContentResolver(), image, "pic.jpeg", "snapshot" ) ;
+                    image = reader.acquireLatestImage();
+                    log ( "acquireLatestImage "+image ) ;
+                    //MediaStore.Images.Media.insertImage ( getContentResolver(), image, "pic.jpeg", "snapshot" ) ;
 
-                        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                        log ( "buffer "+buffer ) ;
-                        byte[] bytes = new byte[buffer.capacity()];
-                        buffer.get(bytes);
-                        save(bytes);
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } finally {
-                        if (image != null) {
-                            image.close();
-                        }
-                    }
+                    ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                    log ( "IMAGE buffer "+buffer ) ;
+                    int bl = buffer.capacity();
+
+                    FrameBufferQueue.JPegFrameBuffer buf = imageBuffer.getBuffer(bl, image.getWidth(), image.getHeight());
+                    byte[] bytes = buf.getBuffer() ;
+                    buffer.get( bytes, 0, bl ) ;
+                    image.close();
+                    comunication.image ( buf ) ;
                 }
 
                 private void save(byte[] bytes) throws IOException {
@@ -390,7 +385,7 @@ public class CameraTasksImpl implements CameraTasks {
                 @Override
                 public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
-                    Toast.makeText(activity, "Saved:" + file, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(activity, "Picture captured", Toast.LENGTH_SHORT).show();
                     createCameraPreview();
                 }
             };
@@ -414,7 +409,13 @@ public class CameraTasksImpl implements CameraTasks {
 
 
     public void takePicture() {
-        previewCameraCaptureSession.close();
+        if ( previewCameraCaptureSession != null )
+            try {
+                previewCameraCaptureSession.close();
+            } catch ( Throwable th ) {
+                log ( LogUtils.exeptionToStr( th ) ) ;
+            }
+
     }
 
     @Override
