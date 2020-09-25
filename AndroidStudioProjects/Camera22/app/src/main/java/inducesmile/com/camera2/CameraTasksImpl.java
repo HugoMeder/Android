@@ -20,6 +20,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -51,19 +53,21 @@ import static android.os.Environment.DIRECTORY_PICTURES;
 // import android.util.Log;
 
 public class CameraTasksImpl implements CameraTasks {
-    private CommunicationThread comunication ;
-    private static BNAPrintlnService log = new BNAPrintlnService () ;
+    private CommunicationThread comunication;
+    private static BNAPrintlnService log = new BNAPrintlnService();
     //private LogStub Log = new LogStub () ;
 
     private Button takePictureButton;
     private TextureView textureView;
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
+
     static {
         ORIENTATIONS.append(Surface.ROTATION_0, 90);
         ORIENTATIONS.append(Surface.ROTATION_90, 0);
         ORIENTATIONS.append(Surface.ROTATION_180, 270);
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
+
     private String cameraId;
     protected CameraDevice cameraDevice;
     protected CameraCaptureSession previewCameraCaptureSession;
@@ -79,24 +83,91 @@ public class CameraTasksImpl implements CameraTasks {
     private Size jpegPreviewSize;
     private ImageReader previewImageReader;
     private AppCompatActivity activity;
-    private boolean repeatingPreviewCapture = true ;
-    private boolean useTextureView = true ;
-    private FrameBufferQueue previewBuffer = new FrameBufferQueue () ;
+    private boolean repeatingPreviewCapture = true;
+    private boolean useTextureView = true;
+    private FrameBufferQueue previewBuffer = new FrameBufferQueue();
 
-    private PreviewCaptureCallback previewCaptureCallback = new PreviewCaptureCallback () ;
+    private PreviewCaptureCallback previewCaptureCallback = new PreviewCaptureCallback();
 
-    CameraTasksImpl () {
-        comunication = new CommunicationThread( this ) ;
-        comunication.println( "Hello from CameraTasksImpl");
+    class StartCsptureCmd implements Runnable {
+
+        @Override
+        public void run() {
+            startFullCaptrure();
+        }
+    }
+
+    class MyHandler extends Handler {
+
+        public MyHandler(Looper looper) {
+            super(looper);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            try {
+                super.handleMessage(msg);
+            } catch (Throwable th) {
+                log(LogUtils.exeptionToStr(th));
+            }
+        }
+    }
+
+
+    CameraTasksImpl() {
+        comunication = new CommunicationThread(this);
+        int vers = 10;
+        comunication.println("Hello from CameraTasksImpl, " + vers);
+        log("Hello from CameraTasksImpl, " + vers);
+        startBackgroundThread();
     }
 
     class PreviewCaptureCallback extends CameraCaptureSession.CaptureCallback {
+        @Override
         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
             //log ( "onCaptureCompleted" ) ;
             //if ( !repeatingPreviewCapture )
-                //updatePreview () ;
+            //updatePreview () ;
         }
 
+        @Override
+        public void onCaptureSequenceAborted(CameraCaptureSession session, int sequenceId) {
+            log("onCaptureSequenceAborted");
+        }
+
+        @Override
+        public void onCaptureSequenceCompleted(CameraCaptureSession session,
+                                               int sequenceId,
+                                               long frameNumber) {
+            log("onCaptureSequenceCompleted");
+            //mBackgroundHandler.post(new StartCsptureCmd());
+        }
+    }
+
+    class PreviesStateCallback extends CameraCaptureSession.StateCallback {
+
+        @Override
+        public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+            log("onConfigured(preview)");
+            if (null == cameraDevice) {
+                log("null == cameraDevice");
+                return;
+            }
+            // When the session is ready, we start displaying the preview.
+            previewCameraCaptureSession = cameraCaptureSession;
+            updatePreview();
+        }
+
+        @Override
+        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+            Toast.makeText(activity, "Configuration change", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onClosed (CameraCaptureSession session) {
+            log ( "preview session closed" ) ;
+            mBackgroundHandler.post(new StartCsptureCmd());
+        }
     }
 
     class PreviewAvailableListener implements ImageReader.OnImageAvailableListener {
@@ -138,12 +209,13 @@ public class CameraTasksImpl implements CameraTasks {
             }
         }
     }
+    /*
     class LogStub {
         void e ( String tag, String txt ) {
             log.println( "Log "+tag+" "+txt );
         }
     }
-
+*/
     TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -163,31 +235,38 @@ public class CameraTasksImpl implements CameraTasks {
         }
     };
 
-    private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
-        @Override
-        public void onOpened(CameraDevice camera) {
-            //This is called when the camera is open
-            //Log.e(TAG, "onOpened");
-            log ( "onOpened" ) ;
-            cameraDevice = camera;
-            createCameraPreview();
-        }
-        @Override
-        public void onDisconnected(CameraDevice camera) {
-            log ( "onDisconnected" ) ;
-            camera.close();
-            cameraDevice = null;
-        }
-        @Override
-        public void onError(CameraDevice camera, int error) {
-            log ( "CameraDevice.StateCallback: onError" ) ;
-            if ( camera != null ) {
-                log ( "close camera ..." ) ;
-                camera.close();
+    private final CameraDevice.StateCallback stateCallback;
+
+    {
+        stateCallback = new CameraDevice.StateCallback() {
+            @Override
+            public void onOpened(CameraDevice camera) {
+                //This is called when the camera is open
+                //Log.e(TAG, "onOpened");
+                log("onOpened");
+                cameraDevice = camera;
+                createCameraPreview();
             }
-            cameraDevice = null;
-        }
-    };
+
+            @Override
+            public void onDisconnected(CameraDevice camera) {
+                log("onDisconnected");
+                camera.close();
+                cameraDevice = null;
+            }
+
+            @Override
+            public void onError(CameraDevice camera, int error) {
+                log("CameraDevice.StateCallback: onError, " +error );
+                if (camera != null) {
+                    log("close camera ...");
+                    camera.close();
+                }
+                cameraDevice = null;
+            }
+        };
+    }
+
     final CameraCaptureSession.CaptureCallback captureCallbackListener = new CameraCaptureSession.CaptureCallback() {
         @Override
         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
@@ -199,7 +278,7 @@ public class CameraTasksImpl implements CameraTasks {
     protected void startBackgroundThread() {
         mBackgroundThread = new HandlerThread("Camera Background");
         mBackgroundThread.start();
-        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
+        mBackgroundHandler = new MyHandler(mBackgroundThread.getLooper());
     }
     protected void stopBackgroundThread() {
         mBackgroundThread.quitSafely();
@@ -234,8 +313,8 @@ public class CameraTasksImpl implements CameraTasks {
         }
     }
 
-    protected void takePicture() {
-        if(null == cameraDevice) {
+    void startFullCaptrure() {
+       if(null == cameraDevice) {
             log ("cameraDevice is null");
             return;
         }
@@ -262,7 +341,7 @@ public class CameraTasksImpl implements CameraTasks {
             // Orientation
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
-            file = new File(Environment.getExternalStoragePublicDirectory( DIRECTORY_PICTURES )/*.getExternalStorageDirectory()*/+"/pic.jpg");
+            file = new File(Environment.getExternalStoragePublicDirectory( DIRECTORY_PICTURES )+"/pic.jpg") ;
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
@@ -319,7 +398,7 @@ public class CameraTasksImpl implements CameraTasks {
                 @Override
                 public void onConfigured(CameraCaptureSession session) {
                     try {
-                        session.capture(captureBuilder.build(), captureListener, mBackgroundHandler);
+                        session.capture(captureBuilder.build(), captureListener, null);
                     } catch (CameraAccessException e) {
                         e.printStackTrace();
                     }
@@ -333,9 +412,19 @@ public class CameraTasksImpl implements CameraTasks {
         }
     }
 
+
+    public void takePicture() {
+        previewCameraCaptureSession.close();
+    }
+
     @Override
     public void log(String s) {
         Log.i ( "CameraTasksImpl",s ) ; //log.println( s );
+    }
+
+    @Override
+    public Handler getHandler() {
+        return  mBackgroundHandler;
     }
 
 
@@ -365,28 +454,15 @@ public class CameraTasksImpl implements CameraTasks {
                 log ( "previewImageReader added" ) ;
             }
             log ( "createCaptureSession..." ) ;
-            cameraDevice.createCaptureSession( targets, new CameraCaptureSession.StateCallback(){@Override
-                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                log ( "onConfigured(preview)" ) ;
-                    if (null == cameraDevice) {
-                        log ( "null == cameraDevice" ) ;
-                        return;
-                    }
-                    // When the session is ready, we start displaying the preview.
-                    previewCameraCaptureSession = cameraCaptureSession;
-                    updatePreview();
-                }
-                @Override
-                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    Toast.makeText(activity, "Configuration change", Toast.LENGTH_SHORT).show();
-                }
-            }, null);
+            cameraDevice.createCaptureSession( targets, new PreviesStateCallback(), null);
             log ( "createCaptureSession, done" ) ;
         } catch (Throwable e) {
             log ( LogUtils.exeptionToStr( e ) ) ;
             e.printStackTrace();
         }
     }
+
+    @Override
     public void openCamera() {
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         log ( "is camera open");
@@ -415,7 +491,7 @@ public class CameraTasksImpl implements CameraTasks {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-        log ( "openCamera X");
+        log ( "openCamera done");
     }
 
     protected void updatePreview() {
@@ -425,17 +501,27 @@ public class CameraTasksImpl implements CameraTasks {
        captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
         try {
             if ( repeatingPreviewCapture )
-                previewCameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, /*mBackgroundHandler*/ null );
+                previewCameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), previewCaptureCallback, /*mBackgroundHandler*/ null );
             else
                 previewCameraCaptureSession.capture( captureRequestBuilder.build(), previewCaptureCallback, /*mBackgroundHandler*/ null );
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
-    private void closeCamera() {
+
+    @Override
+    public void closeCamera() {
+        log ( "closeCamera ..." ) ;
         if (null != cameraDevice) {
-            cameraDevice.close();
-            cameraDevice = null;
+            try {
+                cameraDevice.close();
+                cameraDevice = null;
+            } catch ( Throwable th ) {
+                log ( LogUtils.exeptionToStr( th )) ;
+            }
+            log ( "camera closed" ) ;
+        } else {
+            log ( "cameraDevice == null" ) ;
         }
         if (null != imageReader) {
             imageReader.close();

@@ -22,6 +22,16 @@ public class AndroidCameraApi extends AppCompatActivity implements TextureView.S
             cameraTasks.openCamera () ;
         }
     }
+
+    class TakePicture implements Runnable {
+
+        @Override
+        public void run() {
+            cameraTasks.takePicture () ;
+        }
+    }
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -67,17 +77,22 @@ public class AndroidCameraApi extends AppCompatActivity implements TextureView.S
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         Log.i(TAG, "onDestroy");
+        cameraTasks.closeCamera () ;
+        Log.i(TAG, "return from cameraTasks.closeCamera()");
+        super.onDestroy();
+
     }
 
 
     private void takePicture() {
+        cameraTasks.getHandler().post( new TakePicture() ) ;
     }
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
-        runOnUiThread( new SC() );
+        //runOnUiThread( new SC() );
+        cameraTasks.getHandler().post( new SC() ) ;
     }
 
     @Override
