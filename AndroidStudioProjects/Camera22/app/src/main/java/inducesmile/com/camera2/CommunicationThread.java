@@ -271,7 +271,7 @@ public class CommunicationThread implements Runnable {
     public void previewImage(FrameBufferQueue.JPegFrameBuffer buf) {
         Preview pw = new Preview ( buf ) ;
         synchronized ( sendMonitor ) {
-            if ( previewFramesInQueue > 10 ) {
+            if ( previewFramesInQueue > 2 ) {
                 buf.release();
                 return;
             }
