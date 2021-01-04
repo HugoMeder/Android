@@ -17,18 +17,18 @@ import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 
 //import com.example.hugomeder.gpstest.R;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 
 import de.bitsnarts.android.gps.service.GPSService;
 import de.bitsnarts.android.gps.service.IGPSService;
+import de.bitsnarts.android.gps.service.PGMReader;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -37,11 +37,16 @@ public class MainActivity extends AppCompatActivity {
     private LocationManager locationManager;
     private LocationListener locationListener;
     private File filesDir;
-    private static final int maxNUmConstellations = 7 ;
-    private int satelliteCounts[] = new int[maxNUmConstellations];
+    private static final int maxNumConstellations = 8 ;
+    private int satelliteCounts[] = new int[maxNumConstellations];
     private GnssStatus.Callback gnssStalusListener;
     private boolean binder;
     private Connection connection;
+    private String[] satelliteType = {
+            "?", "GPS", "SBAS", "GLO", "QZ", "BEI", "GAL", "IRN"
+    } ;
+
+    private static PGMReader geoid ;
 
     class Connection implements ServiceConnection {
 
@@ -67,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        loadGeoid () ;
         setContentView(R.layout.activity_main);
         //button = (Button) findViewById(R.id.button);
         textView = (TextView) findViewById(R.id.textView);
@@ -87,16 +93,30 @@ public class MainActivity extends AppCompatActivity {
                 else {
                     Date d = new Date ( location.getTime() ) ;
                     StringBuffer buf = new StringBuffer () ;
-                    for ( int i = 0 ; i < maxNUmConstellations ; i++ ) {
-                        buf.append( " "+satelliteCounts[i] ) ;
+                    for (int i = 0; i < maxNumConstellations; i++ ) {
+                        int sc = satelliteCounts[i] ;
+                        if ( sc != 0 ) {
+                            buf.append(" " + satelliteCounts[i]) ;
+                            buf.append ( satelliteType[i] ) ;
+                        }
+                    }
+                    double delta = 0 ;
+                    if ( geoid != null ) {
+                        try {
+                            delta = geoid.getGeoidHeightAt( location.getLongitude(), location.getLatitude() ) ;
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
                     textView.setText( "\n"+connection.getService().getNumLogsDone()+" geloggt"+
                             "\n"+d +
-                            "\nSatelliten "+buf+
-                            "\nHöhe "+location.getAltitude()+
-                            "\nBreite "+location.getLatitude()+
-                            "\nLänge "+ location.getLongitude()+
-                            "\nGenauigkeit " + location.getAccuracy()
+                            "\nSats "+buf+
+                            "\nHöhe über Ref-Ell."+location.getAltitude()+ " m"+
+                            "\nGeoid Höhe "+String.format( "%3.4f", delta ) + " m"+
+                            "\nHöhe über Geoid "+String.format( "%10.1f", location.getAltitude()-delta ) + " m"+
+                            "\nLänge "+String.format( "%3.5f", location.getLongitude() )+ " \u00B0"+
+                            "\nBreite "+String.format( "%3.5f", location.getLatitude() ) + " \u00B0"+
+                            "\nGenauigkeit " + String.format( "%10.1f", location.getAccuracy() )+" m"
                     ) ;
                 }
             }
@@ -124,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
             public void onSatelliteStatusChanged(GnssStatus status) {
 
                 int n = status.getSatelliteCount();
-                for ( int i = 0 ; i < 6 ; i++ ) {
+                for ( int i = 0 ; i < maxNumConstellations ; i++ ) {
                     satelliteCounts[i] = 0 ;
                 }
                 for ( int i = 0 ; i < n ; i++ ) {
@@ -149,6 +169,18 @@ public class MainActivity extends AppCompatActivity {
 
         }else{
             configureButton () ;
+        }
+    }
+
+    private void loadGeoid() {
+        if ( geoid != null )
+            return ;
+        File dir = this.getFilesDir() ;
+        File file = new File ( dir, "egm2008-5.pgm" ) ;
+        try {
+            geoid = new PGMReader ( file ) ;
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
