@@ -6,31 +6,37 @@ import java.util.Vector;
 
 public class FrameBufferQueue {
 
-    private Vector<JPegFrameBuffer> recycleBuffer = new Vector<JPegFrameBuffer>() ;
+    private Vector<FrameBuffer> recycleBuffer = new Vector<FrameBuffer>() ;
     private Object sync = new Object () ;
 
-    public class JPegFrameBuffer {
+    public class FrameBuffer {
 
         private byte[] buffer;
         private int width;
         private int height;
         private int bufferSize;
+        private int format;
+        private int orientation;
 
-        public JPegFrameBuffer(int bufferSize, int width, int height) {
+        public FrameBuffer(int bufferSize, int width, int height, int format, int orientation ) {
             log ( "alloc "+bufferSize )  ;
-            this.buffer = new byte[bufferSize*2] ;
+            this.buffer = new byte[bufferSize] ;
             this.width = width ;
             this.height = height ;
+            this.format = format ;
+            this.orientation = orientation ;
             this.bufferSize = bufferSize ;
         }
 
         private void log ( String line ) {
             Log.i ( "JPegFrameBuffer", line ) ;
         }
-        public void realloc(int bufferSize, int width, int height) {
+        public void realloc(int bufferSize, int width, int height, int format, int orientation ) {
 
             this.width = width ;
             this.height = height ;
+            this.format = format ;
+            this.orientation = orientation ;
             this.bufferSize = bufferSize ;
             if ( buffer.length < bufferSize ) {
                 log ( "realloc, old "+buffer.length+", new "+bufferSize )  ;
@@ -52,6 +58,10 @@ public class FrameBufferQueue {
             return height ;
         }
 
+        public int getFormat () { return format ; }
+
+        public int getOrientation () { return orientation ; }
+
         public int getBufferSizes () {
             return bufferSize ;
         }
@@ -64,15 +74,15 @@ public class FrameBufferQueue {
         }
     }
 
-    public JPegFrameBuffer getBuffer ( int bufferSize, int width, int height ) {
-        JPegFrameBuffer rv = null ;
+    public FrameBuffer getBuffer (int bufferSize, int width, int height, int format, int orientation ) {
+        FrameBuffer rv = null ;
         synchronized ( sync ) {
             if ( recycleBuffer.size() > 0 ) {
                 rv = recycleBuffer.get( 0 ) ;
                 recycleBuffer.remove( 0 ) ;
-                rv.realloc ( bufferSize, width, height ) ;
+                rv.realloc ( bufferSize, width, height, format, orientation ) ;
              } else {
-                rv = new JPegFrameBuffer ( bufferSize, width, height ) ;
+                rv = new FrameBuffer( bufferSize, width, height, format, orientation ) ;
             }
             return rv ;
         }

@@ -5,6 +5,10 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -16,26 +20,24 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.os.Bundle;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.TextureView;
-import android.view.View;
 import android.widget.Button;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -44,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import de.bitsnarts.transform.Quaternion;
 import inducesmile.communication.BNAPrintlnService;
 import inducesmile.communication.LogUtils;
 
@@ -89,12 +92,34 @@ public class CameraTasksImpl implements CameraTasks {
     private FrameBufferQueue imageBuffer = new FrameBufferQueue();
 
     private PreviewCaptureCallback previewCaptureCallback = new PreviewCaptureCallback();
+    private boolean logToThreadMonitor = true ;
+    private CaptureType captureType = CaptureType.JPEG ;
+    private double [][]  ori ;
+    private int jpegOrientation = 0 ;
+    private int jori;
 
-    class StartCsptureCmd implements Runnable {
+    enum CaptureType {
+        JPEG, RAW
+    } ;
+
+    class StartCaptureCmd implements Runnable {
 
         @Override
         public void run() {
             startFullCaptrure();
+        }
+    }
+
+    class StartPreviewCmd implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                Thread.sleep ( 10000 ) ;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            createCameraPreview();
         }
     }
 
@@ -114,13 +139,57 @@ public class CameraTasksImpl implements CameraTasks {
         }
     }
 
+    class RotationSensorListener implements SensorEventListener {
+
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+                float[] vals = event.values;
+                if ( vals != null ) {
+                    if ( ori == null ) {
+                        ori = new double[3][3] ;
+                    }
+                    Quaternion q = new Quaternion( vals[3], vals[0], vals[1], vals[2] );
+                    q.getMatrix33( ori );
+                    double x = ori[2][0] ;
+                    double y = ori[2][1] ;
+                    double z = ori[2][2] ;
+                    double xx = x * x;;
+                    double yy = y*y ;
+                    double zz = z*z ;
+                    if ( xx > zz || yy > zz ) {
+                        if ( xx > yy ) {
+                            if ( x > 0 ) {
+                                jpegOrientation = 0 ;
+                            } else {
+                                jpegOrientation = 180 ;
+                            }
+                        } else {
+                            if ( y > 0 ) {
+                                jpegOrientation = 90 ;
+                            } else {
+                                jpegOrientation = 270 ;
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+        }
+    }
 
     CameraTasksImpl() {
         comunication = new CommunicationThread(this);
-        int vers = 12;
+        int vers = 20;
         comunication.println("Hello from CameraTasksImpl, " + vers);
         log("Hello from CameraTasksImpl, " + vers);
         startBackgroundThread();
+
     }
 
     class PreviewCaptureCallback extends CameraCaptureSession.CaptureCallback {
@@ -167,12 +236,13 @@ public class CameraTasksImpl implements CameraTasks {
         @Override
         public void onClosed (CameraCaptureSession session) {
             log ( "preview session closed" ) ;
-            mBackgroundHandler.post(new StartCsptureCmd());
+            mBackgroundHandler.post(new StartCaptureCmd());
         }
     }
 
     class PreviewAvailableListener implements ImageReader.OnImageAvailableListener {
 
+        @RequiresApi(api = Build.VERSION_CODES.P)
         @Override
         public void onImageAvailable(ImageReader imageReader) {
             //log("onImageAvailable...!");
@@ -181,7 +251,7 @@ public class CameraTasksImpl implements CameraTasks {
                 Image img = imageReader.acquireNextImage() ;
                 if ( img != null ) {
                     //log("preview img != null");
-                    Image.Plane planes = img.getPlanes()[0];;
+                    Image.Plane planes = img.getPlanes()[0];
                     if ( planes == null ) {
                         log ( "planes==null" ) ;
                         img.close () ;
@@ -191,7 +261,7 @@ public class CameraTasksImpl implements CameraTasks {
                     int bl = buffer.capacity() ;
                     if ( buffer != null ) {
                         log("get buffer,  length "+bl );
-                        FrameBufferQueue.JPegFrameBuffer buf = previewBuffer.getBuffer(bl, jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight());
+                        FrameBufferQueue.FrameBuffer buf = previewBuffer.getBuffer(bl, jpegPreviewSize.getWidth(), jpegPreviewSize.getHeight(), 0, jpegOrientation );
                         byte[] bytes = buf.getBuffer() ;
                         buffer.get( bytes, 0, bl ) ;
                         log("buffer length "+bl );
@@ -199,8 +269,8 @@ public class CameraTasksImpl implements CameraTasks {
                     } else {
                         log ( "buffer == null" ) ;
                     }
-                    //log("img.close ...");
                     img.close();
+                    //log("img.close ...");
                     //log("img.closed");
                 }
                 else
@@ -268,14 +338,16 @@ public class CameraTasksImpl implements CameraTasks {
         };
     }
 
+    /*
     final CameraCaptureSession.CaptureCallback captureCallbackListener = new CameraCaptureSession.CaptureCallback() {
         @Override
         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
             super.onCaptureCompleted(session, request, result);
             //Toast.makeText(CameraTasks.this, "Saved:" + file, Toast.LENGTH_SHORT).show();
-            createCameraPreview();
+            //createCameraPreview();
         }
-    };
+    };*/
+
     protected void startBackgroundThread() {
         mBackgroundThread = new HandlerThread("Camera Background");
         mBackgroundThread.start();
@@ -295,6 +367,12 @@ public class CameraTasksImpl implements CameraTasks {
     @Override
     public void setActivity ( AppCompatActivity activity ) {
 
+        if ( this.activity == null ) {
+            SensorManager sensorManager = (SensorManager) activity.getSystemService(Context.SENSOR_SERVICE);
+            Sensor sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+            sensorManager.registerListener( new RotationSensorListener(), sensor, SensorManager.SENSOR_DELAY_NORMAL) ;
+            comunication.setContext( activity ) ;
+        }
         this.activity = activity ;
     }
 
@@ -322,26 +400,47 @@ public class CameraTasksImpl implements CameraTasks {
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
+            int format = -1 ;
+            switch ( captureType ) {
+                case JPEG : {
+                    format = ImageFormat.JPEG ;
+                    break ;
+                }
+                case RAW : {
+                    format = ImageFormat.RAW_SENSOR ;
+                    break ;
+                }
+            }
             Size[] jpegSizes = null;
-            if (characteristics != null) {
-                jpegSizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(ImageFormat.JPEG);
+            if (characteristics != null && format != -1 ) {
+                jpegSizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(format);
             }
             int width = 640;
             int height = 480;
             if (jpegSizes != null && 0 < jpegSizes.length) {
                 width = jpegSizes[0].getWidth();
                 height = jpegSizes[0].getHeight();
+                for ( int i = 0 ; i < jpegSizes.length ; i++ ) {
+                    log ( "capture frame size "+i+" "+jpegSizes[i].getWidth()+"x"+jpegSizes[i].getWidth() ) ;
+                }
+            } else {
+                log ( "no sizes for format defined" ) ;
             }
-            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
+            ImageReader reader = null ;
+            reader = ImageReader.newInstance(width, height, format, 1);
+
             List<Surface> outputSurfaces = new ArrayList<Surface>(2);
-            outputSurfaces.add(reader.getSurface());
+            if ( reader != null ) {
+                outputSurfaces.add(reader.getSurface());
+            }
             outputSurfaces.add(new Surface(textureView.getSurfaceTexture()));
             final CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(reader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
             // Orientation
-            int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
+            jori = jpegOrientation;;
+            log ( "rotation "+jpegOrientation ) ;
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, jpegOrientation /*ORIENTATIONS.get(rotation)*/ );
             file = new File(Environment.getExternalStoragePublicDirectory( DIRECTORY_PICTURES )+"/pic.jpg") ;
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
@@ -351,15 +450,38 @@ public class CameraTasksImpl implements CameraTasks {
                     log ( "acquireLatestImage "+image ) ;
                     //MediaStore.Images.Media.insertImage ( getContentResolver(), image, "pic.jpeg", "snapshot" ) ;
 
-                    ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                    log ( "IMAGE buffer "+buffer ) ;
-                    int bl = buffer.capacity();
-
-                    FrameBufferQueue.JPegFrameBuffer buf = imageBuffer.getBuffer(bl, image.getWidth(), image.getHeight());
-                    byte[] bytes = buf.getBuffer() ;
-                    buffer.get( bytes, 0, bl ) ;
-                    image.close();
-                    comunication.image ( buf ) ;
+                    switch ( captureType ) {
+                        case JPEG : {
+                            ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                            log ( "IMAGE buffer "+buffer ) ;
+                            int bl = buffer.capacity();
+                            FrameBufferQueue.FrameBuffer buf = imageBuffer.getBuffer(bl, image.getWidth(), image.getHeight(), 0 , jori );
+                            byte[] bytes = buf.getBuffer() ;
+                            buffer.get( bytes, 0, bl ) ;
+                            image.close();
+                            comunication.image ( buf ) ;
+                            break ;
+                        }
+                        case RAW : {
+                            ByteBuffer buffer ;
+                            buffer = image.getPlanes()[0].getBuffer();
+                            log ( "Buffer 0, capacity "+buffer.capacity()+ ", remaining "+buffer.remaining()+", width "+image.getWidth()+", height "+image.getHeight() ) ;
+                            log ( "raw capture ...." ) ;
+                            int bl = buffer.capacity() / 4 ;
+                            FrameBufferQueue.FrameBuffer buf = imageBuffer.getBuffer(bl, image.getWidth(), image.getHeight(), 1, jori );
+                            byte[] bytes = buf.getBuffer() ;
+                            buffer.get( bytes, 0, bl ) ;
+                            image.close();
+                            comunication.image ( buf ) ;
+                            /*
+                            Image.Plane[] planes = image.getPlanes();
+                            if ( planes != null ) {
+                                log ( "planes "+planes.length ) ;
+                            }*/
+                            image.close () ;
+                            break ;
+                        }
+                    }
                 }
 
                 private void save(byte[] bytes) throws IOException {
@@ -383,17 +505,16 @@ public class CameraTasksImpl implements CameraTasks {
             reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
             final CameraCaptureSession.CaptureCallback captureListener = new CameraCaptureSession.CaptureCallback() {
                 @Override
-                public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
-                    super.onCaptureCompleted(session, request, result);
-                    Toast.makeText(activity, "Picture captured", Toast.LENGTH_SHORT).show();
-                    createCameraPreview();
+                public void onCaptureSequenceCompleted(@NonNull CameraCaptureSession session, int sequenceId, long frameNumber) {
+                    super.onCaptureSequenceCompleted(session, sequenceId, frameNumber);
+                    session.close();
                 }
             };
             cameraDevice.createCaptureSession(outputSurfaces, new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(CameraCaptureSession session) {
                     try {
-                        session.capture(captureBuilder.build(), captureListener, null);
+                        session.capture(captureBuilder.build(), captureListener, mBackgroundHandler);
                     } catch (CameraAccessException e) {
                         e.printStackTrace();
                     }
@@ -401,6 +522,14 @@ public class CameraTasksImpl implements CameraTasks {
                 @Override
                 public void onConfigureFailed(CameraCaptureSession session) {
                 }
+                @Override
+                public void onClosed(CameraCaptureSession session) {
+                    log ( "onClosed(capture)" ) ;
+                    //Toast.makeText(activity, "Picture captured", Toast.LENGTH_SHORT).show();
+                    //createCameraPreview();
+                    mBackgroundHandler.post ( new StartPreviewCmd() ) ;
+                }
+
             }, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -420,7 +549,11 @@ public class CameraTasksImpl implements CameraTasks {
 
     @Override
     public void log(String s) {
-        Log.i ( "CameraTasksImpl",s ) ; //log.println( s );
+        if ( logToThreadMonitor ) {
+            log.println( s );
+        } else {
+            Log.i ( "CameraTasksImpl",s ) ;
+        }
     }
 
     @Override

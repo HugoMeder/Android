@@ -1,5 +1,12 @@
 package inducesmile.com.camera2;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.support.v7.app.AppCompatActivity;
+
 import java.io.CharArrayWriter;
 import java.io.DataInputStream;
 import java.io.DataOutput;
@@ -10,10 +17,11 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Vector;
 
-import inducesmile.com.camera2.CameraTasks;
-import inducesmile.com.camera2.ServiceToClientCmds;
 import inducesmile.communication.BNALookup;
 import inducesmile.communication.BNAServerSocket;
+import inducesmile.communication.LogUtils;
+
+import static android.content.Context.WIFI_SERVICE;
 
 public class CommunicationThread implements Runnable {
 
@@ -26,6 +34,13 @@ public class CommunicationThread implements Runnable {
     private Object sendMonitor = new Object () ;
     private int previewFramesInQueue ;
     private int imageFramesInQueue ;
+    private Context context;
+
+    public void setContext(AppCompatActivity context) {
+        synchronized ( this ) {
+            this.context = context.getApplicationContext();
+        }
+    }
 
     abstract class OutMessage {
         abstract void write (DataOutput out ) throws IOException;
@@ -47,15 +62,17 @@ public class CommunicationThread implements Runnable {
     class Preview extends OutMessage {
 
 
-        private final FrameBufferQueue.JPegFrameBuffer buf;
+        private final FrameBufferQueue.FrameBuffer buf;
 
-        public Preview(FrameBufferQueue.JPegFrameBuffer buf) {
+        public Preview(FrameBufferQueue.FrameBuffer buf) {
             this.buf = buf ;
         }
 
         @Override
         void write(DataOutput dout) throws IOException {
             dout.writeInt ( ServiceToClientCmds.PREVIEW.getCode() ) ;
+            dout.writeInt ( buf.getFormat() ) ;
+            dout.writeInt ( buf.getOrientation() ) ;
             dout.writeInt( buf.getWidht() );
             dout.writeInt( buf.getHeight() );
             dout.writeInt( buf.getBufferSizes() );
@@ -70,15 +87,17 @@ public class CommunicationThread implements Runnable {
     class Image extends OutMessage {
 
 
-        private final FrameBufferQueue.JPegFrameBuffer buf;
+        private final FrameBufferQueue.FrameBuffer buf;
 
-        public Image(FrameBufferQueue.JPegFrameBuffer buf) {
+        public Image(FrameBufferQueue.FrameBuffer buf) {
             this.buf = buf ;
         }
 
         @Override
         void write(DataOutput dout) throws IOException {
             dout.writeInt ( ServiceToClientCmds.IMAGE.getCode() ) ;
+            dout.writeInt ( buf.getFormat() ) ;
+            dout.writeInt ( buf.getOrientation() ) ;
             dout.writeInt( buf.getWidht() );
             dout.writeInt( buf.getHeight() );
             dout.writeInt( buf.getBufferSizes() );
@@ -169,6 +188,48 @@ public class CommunicationThread implements Runnable {
             service.log ( exeptionToStr( th ) ) ;
         }
     }
+
+    boolean onWLAN () {
+        Context a ;
+        synchronized ( this ) {
+            a = context;;
+        }
+        if ( a == null ) {
+            log ( "no context" ) ;
+            return false;
+        }
+        /*
+        android.net.wifi.WifiManager m = (WifiManager) a.getSystemService(WIFI_SERVICE);
+        android.net.wifi.SupplicantState s = m.getConnectionInfo().getSupplicantState();
+        NetworkInfo.DetailedState state = WifiInfo.getDetailedStateOf(s);
+        boolean rv = (state == NetworkInfo.DetailedState.CONNECTED) ;
+         */
+        boolean rv = isConnectedWifi1 ( a ) ;
+        if ( !rv ) {
+            log("no WLAN " );
+        }
+        return rv ;
+    }
+
+    public boolean isConnectedWifi1(Context context) {
+        try {
+            ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+            if (networkInfo != null) {
+                NetworkInfo[] netInfo = connectivityManager.getAllNetworkInfo();
+                for (NetworkInfo ni : netInfo) {
+                    if ((ni.getTypeName().equalsIgnoreCase("WIFI"))
+                            && ni.isConnected()) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log (LogUtils.exeptionToStr( e ) ) ;
+        }
+        return false;
+    }
     public void run() {
 
         synchronized ( this ) {
@@ -181,6 +242,9 @@ public class CommunicationThread implements Runnable {
         try {
             for (;;) {
                 try {
+                    if ( !onWLAN() ) {
+                        throw new IOException ( "not on wlan" ) ;
+                    }
                     s = ss.accept() ;
                     log ( "connected" ) ;
                     int index = 0 ;
@@ -188,6 +252,9 @@ public class CommunicationThread implements Runnable {
                     notifySend () ;
                     DataInputStream in = new DataInputStream(s.getInputStream());
                     for (;;) {
+                        if ( !onWLAN() ) {
+                            throw new IOException ( "not on wlan" ) ;
+                        }
                         int cmd = in.readInt () ;
                         log( "cmd="+cmd ) ;
                         if ( cmd == 1 )
@@ -202,7 +269,7 @@ public class CommunicationThread implements Runnable {
                 } catch ( Exception e) {
                     log ( exeptionToStr(e) ) ;
                     e.printStackTrace();
-                    Thread.sleep( 10000 );
+                    Thread.sleep( 1000 );
                     if ( s != null ) {
                         s.close () ;
                     }
@@ -268,7 +335,7 @@ public class CommunicationThread implements Runnable {
         }
     }
 
-    public void previewImage(FrameBufferQueue.JPegFrameBuffer buf) {
+    public void previewImage(FrameBufferQueue.FrameBuffer buf) {
         Preview pw = new Preview ( buf ) ;
         synchronized ( sendMonitor ) {
             if ( previewFramesInQueue > 2 ) {
@@ -281,7 +348,7 @@ public class CommunicationThread implements Runnable {
         }
     }
 
-    public void image(FrameBufferQueue.JPegFrameBuffer buf) {
+    public void image(FrameBufferQueue.FrameBuffer buf) {
         Image img = new Image ( buf ) ;
         synchronized ( sendMonitor ) {
             if ( imageFramesInQueue > 1 ) {

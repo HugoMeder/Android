@@ -40,6 +40,7 @@ public class AndroidCameraApi extends AppCompatActivity implements TextureView.S
         textureView = (TextureView) findViewById(R.id.texture);
         textureView.setSurfaceTextureListener( this );
         cameraTasks.setActivity( this );
+
         Button takePictureButton = (Button) findViewById(R.id.btn_takepicture);
         assert takePictureButton != null;
         takePictureButton.setOnClickListener(new View.OnClickListener() {
