@@ -29,6 +29,8 @@ import java.util.List;
 import de.bitsnarts.android.gps.service.GPSService;
 import de.bitsnarts.android.gps.service.IGPSService;
 import de.bitsnarts.android.gps.service.PGMReader;
+import de.bitsnarts.geoid.Geoid;
+import de.bitsnarts.geoid.GeoidInterface ;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -47,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     } ;
 
     private static PGMReader geoid ;
+    private static GeoidInterface geoid2 = new Geoid() ;
 
     class Connection implements ServiceConnection {
 
@@ -72,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        loadGeoid () ;
+        //loadGeoid () ;
         setContentView(R.layout.activity_main);
         //button = (Button) findViewById(R.id.button);
         textView = (TextView) findViewById(R.id.textView);
@@ -101,23 +104,26 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                     double delta = 0 ;
-                    if ( geoid != null ) {
-                        try {
-                            delta = geoid.getGeoidHeightAt( location.getLongitude(), location.getLatitude() ) ;
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                    double g = 0 ;
+                    double ac = geoid2.getAthmosphericCorrectionAcceleration() ;
+                    geoid2.setPosition( location.getLongitude(), location.getLatitude() );
+                    delta = geoid2.getUndulation() ;
+                    g = geoid2.getGravity() ;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        textView.setText( "\n"+connection.getService().getNumLogsDone()+" geloggt"+
+                                "\n"+d +
+                                "\nSats "+buf+
+                                "\nHöhe über Ref-Ell."+location.getAltitude()+ " m"+
+                                "\nGeoid Höhe "+String.format( "%3.4f", delta ) + " m"+
+                                "\nHöhe über Geoid "+String.format( "%10.1f", location.getAltitude()-delta ) + " m"+
+                                "\nGravitation "+String.format( "%3.8f", g ) + " m/(s^2)"+
+                                "\nGravitation c "+String.format( "%3.8f", ac ) + " m/(s^2)"+
+                                "\nLänge "+String.format( "%3.5f", location.getLongitude() )+ " \u00B0"+
+                                "\nBreite "+String.format( "%3.5f", location.getLatitude() ) + " \u00B0"+
+                                "\nGenauigkeit " + String.format( "%10.1f", location.getAccuracy() )+" m"+
+                                "\nGenauigkeit (Höhe)" + String.format( "%10.1f", location.getVerticalAccuracyMeters() )+" m"
+                        ) ;
                     }
-                    textView.setText( "\n"+connection.getService().getNumLogsDone()+" geloggt"+
-                            "\n"+d +
-                            "\nSats "+buf+
-                            "\nHöhe über Ref-Ell."+location.getAltitude()+ " m"+
-                            "\nGeoid Höhe "+String.format( "%3.4f", delta ) + " m"+
-                            "\nHöhe über Geoid "+String.format( "%10.1f", location.getAltitude()-delta ) + " m"+
-                            "\nLänge "+String.format( "%3.5f", location.getLongitude() )+ " \u00B0"+
-                            "\nBreite "+String.format( "%3.5f", location.getLatitude() ) + " \u00B0"+
-                            "\nGenauigkeit " + String.format( "%10.1f", location.getAccuracy() )+" m"
-                    ) ;
                 }
             }
 
