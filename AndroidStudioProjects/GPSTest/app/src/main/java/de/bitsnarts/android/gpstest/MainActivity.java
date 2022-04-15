@@ -93,41 +93,90 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationChanged(Location location) {
                 if ( location == null )
                     textView.append( "?");
-                else {
-                    Date d = new Date ( location.getTime() ) ;
-                    StringBuffer buf = new StringBuffer () ;
-                    for (int i = 0; i < maxNumConstellations; i++ ) {
-                        int sc = satelliteCounts[i] ;
-                        if ( sc != 0 ) {
-                            buf.append(" " + satelliteCounts[i]) ;
-                            buf.append ( satelliteType[i] ) ;
-                        }
-                    }
-                    double delta = 0 ;
-                    double g = 0 ;
-                    double ac = geoid2.getAthmosphericCorrectionAcceleration() ;
-                    geoid2.setPosition( location.getLongitude(), location.getLatitude() );
-                    delta = geoid2.getUndulation() ;
-                    g = geoid2.getGravity() ;
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        textView.setText( "\n"+connection.getService().getNumLogsDone()+" geloggt"+
-                                "\n"+d +
-                                "\nSats "+buf+
-                                "\nHöhe über Ref-Ell."+location.getAltitude()+ " m"+
-                                "\nGeoid Höhe "+String.format( "%3.4f", delta ) + " m"+
-                                "\nHöhe über Geoid "+String.format( "%10.1f", location.getAltitude()-delta ) + " m"+
-                                "\nGravitation "+String.format( "%3.8f", g ) + " m/(s^2)"+
-                                "\nGravitation c "+String.format( "%3.8f", ac ) + " m/(s^2)"+
-                                "\nLänge "+String.format( "%3.5f", location.getLongitude() )+ " \u00B0"+
-                                "\nBreite "+String.format( "%3.5f", location.getLatitude() ) + " \u00B0"+
-                                "\nGenauigkeit " + String.format( "%10.1f", location.getAccuracy() )+" m"+
-                                "\nGenauigkeit (Höhe)" + String.format( "%10.1f", location.getVerticalAccuracyMeters() )+" m"
-                        ) ;
-                    }
-                }
+                else
+                    textView.setText( getTextForLocation ( location ) ) ;
             }
 
-            @Override
+            String getTextForLocation ( Location location ) {
+                if ( true )
+                    return getOldTextForLocation (location ) ;
+                else
+                    return getNewTextForLocation (location ) ;
+            }
+
+    private String getNewTextForLocation(Location location) {
+
+        Date d = new Date ( location.getTime() ) ;
+        StringBuffer buf = new StringBuffer () ;
+        for (int i = 0; i < maxNumConstellations; i++ ) {
+            int sc = satelliteCounts[i] ;
+            if ( sc != 0 ) {
+                buf.append(" " + satelliteCounts[i]) ;
+                buf.append ( satelliteType[i] ) ;
+            }
+        }
+        double delta = 0 ;
+        double g = 0 ;
+        double ac = geoid2.getAthmosphericCorrectionAcceleration() ;
+        geoid2.setPosition( location.getLongitude(), location.getLatitude() );
+        delta = geoid2.getUndulation() ;
+        g = geoid2.getGravity() ;
+        double hog_m = location.getAltitude() - delta;
+        double hog_ft = hog_m / 0.3048;;
+        String rv = "\n" + connection.getService().getNumLogsDone() + " geloggt" +
+                    "\n" + d +
+                    "\nSats " + buf +
+                    "\nHöhe über Ref-Ell." + location.getAltitude() + " m" +
+                    "\nGeoid Höhe " + String.format("%3.4f", delta) + " m" +
+                    "\nHöhe über Geoid " + String.format("%10.1f m, %10.1f ft", hog_m, hog_ft) +
+                    "\nGravitation " + String.format("%3.8f", g) + " m/(s^2)" +
+                    "\nGravitation c " + String.format("%3.8f", ac) + " m/(s^2)" +
+                    "\nLänge " + String.format("%3.5f", location.getLongitude()) + " \u00B0" +
+                    "\nBreite " + String.format("%3.5f", location.getLatitude()) + " \u00B0" +
+                    "\nGenauigkeit " + String.format("%10.1f", location.getAccuracy()) + " m" ;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            rv += "\nGenauigkeit (Höhe)" + String.format("%10.1f", location.getVerticalAccuracyMeters()) + " m";
+        }
+        return rv ;
+    }
+
+    private String getOldTextForLocation(Location location) {
+
+        Date d = new Date ( location.getTime() ) ;
+        StringBuffer buf = new StringBuffer () ;
+        for (int i = 0; i < maxNumConstellations; i++ ) {
+            int sc = satelliteCounts[i] ;
+            if ( sc != 0 ) {
+                buf.append(" " + satelliteCounts[i]) ;
+                buf.append ( satelliteType[i] ) ;
+            }
+        }
+        double delta = 0 ;
+        double g = 0 ;
+        double ac = geoid2.getAthmosphericCorrectionAcceleration() ;
+        geoid2.setPosition( location.getLongitude(), location.getLatitude() );
+        delta = geoid2.getUndulation() ;
+        g = geoid2.getGravity() ;
+        double hog_m = location.getAltitude() - delta;
+        double hog_ft = hog_m / 0.3048;;
+        String rv = "\n" + connection.getService().getNumLogsDone() + " geloggt" +
+                "\n" + d +
+                "\nSats " + buf +
+                "\nHöhe über Ref-Ell." + location.getAltitude() + " m" +
+                "\nGeoid Höhe " + String.format("%3.4f", delta) + " m" +
+                "\nHöhe über Geoid " + String.format("%10.1f m, %10.1f ft", hog_m, hog_ft) +
+                "\nGravitation " + String.format("%3.8f", g) + " m/(s^2)" +
+                "\nGravitation c " + String.format("%3.8f", ac) + " m/(s^2)" +
+                "\nLänge " + String.format("%3.5f", location.getLongitude()) + " \u00B0" +
+                "\nBreite " + String.format("%3.5f", location.getLatitude()) + " \u00B0" +
+                "\nGenauigkeit " + String.format("%10.1f", location.getAccuracy()) + " m" ;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            rv += "\nGenauigkeit (Höhe)" + String.format("%10.1f", location.getVerticalAccuracyMeters()) + " m";
+        }
+        return rv ;
+    }
+
+    @Override
             public void onStatusChanged(String provider, int status, Bundle extras) {
 
             }
