@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static PGMReader geoid ;
     private static GeoidInterface geoid2 = new Geoid() ;
-
+    private static VelocityOnSphere vos = new VelocityOnSphere() ;
     class Connection implements ServiceConnection {
 
         private IGPSService service;
@@ -119,10 +119,11 @@ public class MainActivity extends AppCompatActivity {
         double g = 0 ;
         double ac = geoid2.getAthmosphericCorrectionAcceleration() ;
         geoid2.setPosition( location.getLongitude(), location.getLatitude() );
+        vos.setPosition ( d, location.getLongitude(), location.getLatitude() ) ;
         delta = geoid2.getUndulation() ;
         g = geoid2.getGravity() ;
         double hog_m = location.getAltitude() - delta;
-        double hog_ft = hog_m / 0.3048;;
+        double hog_ft = hog_m / 0.3048;
         String rv = "\n" + connection.getService().getNumLogsDone() + " geloggt" +
                     "\n" + d +
                     "\nSats " + buf +
@@ -130,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
                     "\nGeoid Höhe " + String.format("%3.4f", delta) + " m" +
                     "\nHöhe über Geoid " + String.format("%10.1f m, %10.1f ft", hog_m, hog_ft) +
                     "\nGravitation " + String.format("%3.8f", g) + " m/(s^2)" +
-                    "\nGravitation c " + String.format("%3.8f", ac) + " m/(s^2)" +
+                    "\nGravitation ac " + String.format("%3.8f", ac) + " m/(s^2)" +
                     "\nLänge " + String.format("%3.5f", location.getLongitude()) + " \u00B0" +
                     "\nBreite " + String.format("%3.5f", location.getLatitude()) + " \u00B0" +
                     "\nGenauigkeit " + String.format("%10.1f", location.getAccuracy()) + " m" ;
@@ -155,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
         double g = 0 ;
         double ac = geoid2.getAthmosphericCorrectionAcceleration() ;
         geoid2.setPosition( location.getLongitude(), location.getLatitude() );
+        vos.setPosition ( d, location.getLongitude(), location.getLatitude() ) ;
         delta = geoid2.getUndulation() ;
         g = geoid2.getGravity() ;
         double hog_m = location.getAltitude() - delta;
@@ -166,12 +168,22 @@ public class MainActivity extends AppCompatActivity {
                 "\nGeoid Höhe " + String.format("%3.4f", delta) + " m" +
                 "\nHöhe über Geoid " + String.format("%10.1f m, %10.1f ft", hog_m, hog_ft) +
                 "\nGravitation " + String.format("%3.8f", g) + " m/(s^2)" +
-                "\nGravitation c " + String.format("%3.8f", ac) + " m/(s^2)" +
+                "\nGravitation ac " + String.format("%3.8f", ac) + " m/(s^2)" +
                 "\nLänge " + String.format("%3.5f", location.getLongitude()) + " \u00B0" +
                 "\nBreite " + String.format("%3.5f", location.getLatitude()) + " \u00B0" +
                 "\nGenauigkeit " + String.format("%10.1f", location.getAccuracy()) + " m" ;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             rv += "\nGenauigkeit (Höhe)" + String.format("%10.1f", location.getVerticalAccuracyMeters()) + " m";
+        }
+        if ( vos.hasVel ) {
+            double vN = vos.velNord * 3600.0 / 1000.0;
+            double vE = vos.velEast *3600.0 / 1000.0;
+            double v = Math.sqrt(vN * vN + vE * vE);
+            rv += "\nGeschwindigkeit "+String.format( "%3.1f km/h", v ) ;
+            if ( v != 0.0 ) {
+                double phiDeg = Math.atan2( vE, vN )*180/Math.PI ;
+                rv += ", "+String.format( "%3.1f", phiDeg)+((char)0x00B0) ;
+            }
         }
         return rv ;
     }
