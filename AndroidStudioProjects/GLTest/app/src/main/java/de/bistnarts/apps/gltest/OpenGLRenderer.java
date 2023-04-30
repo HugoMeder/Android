@@ -10,7 +10,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        GLES20.glClearColor( 1f, 0f, 0f, 1f );
+        GLES20.glClearColor( 1f, 0f, 1f, 1f );
     }
 
     @Override
@@ -21,5 +21,6 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
     @Override
     public void onDrawFrame(GL10 gl) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT );
+        GLES20.
     }
 }
