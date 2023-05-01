@@ -25,6 +25,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import de.bistnarts.apps.orientationtest.tools.ContinousQuaternionFilter;
+import de.bistnarts.apps.orientationtest.tools.GNSSOneShoot;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -39,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
 
         TEXT ( R.layout.text_view, TextViewHolder.class, "Text" ),
         AXIS ( R.layout.axis_view, AxisViewHolder.class, "Mangetfield" ),
-        SPIRIT_LEVEL ( R.layout.spiritlevel_view, SpiritLevelViewHolder.class, "SpiritLevel" ) ;
+        SPIRIT_LEVEL ( R.layout.spiritlevel_view, SpiritLevelViewHolder.class, "Wasserwaage" ) ;
 
         InitAttrs (int layout, java.lang.Class viewHolderClass, String tabName ) {
             this.layout = layout ;
@@ -53,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
         final String tabName;
     }
 
-    InitAttrs[] initAttrs = { InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
+    InitAttrs[] initAttrs = { InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
     int numViews = initAttrs.length ;
 
         class MyAdapter extends  RecyclerView.Adapter implements SensorEventListener {
@@ -157,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         adapter = new MyAdapter();
         int view = R.layout.pager;
         setContentView(view);

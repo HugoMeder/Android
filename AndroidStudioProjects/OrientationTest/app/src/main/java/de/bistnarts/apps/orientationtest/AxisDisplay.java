@@ -3,14 +3,26 @@ package de.bistnarts.apps.orientationtest;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.hardware.GeomagneticField;
+import android.location.Location;
+import android.location.LocationListener;
 import android.util.AttributeSet;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+
+import java.util.Date;
+import java.util.Locale;
+import java.util.Vector;
+
+import de.bistnarts.apps.orientationtest.tools.GNSSOneShoot;
 import de.bistnarts.apps.orientationtest.tools.GyrosopicIntegrator;
 import de.bistnarts.apps.orientationtest.tools.LowPassFilter;
 import de.bistnarts.apps.orientationtest.tools.Quaternion;
+import de.bistnarts.apps.orientationtest.tools.TextDrawer;
 
-public class AxisDisplay extends View implements AttachDetach {
+public class AxisDisplay extends View implements AttachDetach, View.OnClickListener, View.OnLongClickListener, LocationListener {
     private Quaternion orientation;
     double[][]matrix = new double[3][3] ;
     float[]vec = new float[3] ;
@@ -31,6 +43,13 @@ public class AxisDisplay extends View implements AttachDetach {
     private Paint igreen;
     private Paint iblue;
     private Paint[] irgb;
+    private TextDrawer td;
+    private int clickCount;
+    private GNSSOneShoot gnss;
+    private GeomagneticField geomRef;
+    private Location location;
+    private boolean zeroAngularMomentum;
+
 
     public AxisDisplay(Context context) {
         super(context);
@@ -62,7 +81,11 @@ public class AxisDisplay extends View implements AttachDetach {
         white = new Paint();
         white.setARGB( 255, 255, 255, 255 );
         white.setStrokeWidth( sw );
-        white.setTextSize( 100 );
+        white.setTextSize( 50 );
+        white.setTypeface( Typeface.MONOSPACE ) ;
+        white.setTextScaleX( 0.7f );
+        td = new TextDrawer(white);
+
         grey = new Paint();
         grey.setARGB( 255, 100, 100, 100 );
         grey.setStrokeWidth( sw );
@@ -81,6 +104,12 @@ public class AxisDisplay extends View implements AttachDetach {
         irgb[0] = ired ;
         irgb[1] = igreen ;
         irgb[2] = iblue ;
+
+        this.setClickable( true ) ;
+        setOnClickListener( this );
+        setOnLongClickListener( this );
+
+        gnss = new GNSSOneShoot(this.getContext(), this);
     }
 
     public void setOrientation(float[] ori) {
@@ -98,9 +127,12 @@ public class AxisDisplay extends View implements AttachDetach {
         accelleration = values ;
     }
     public void setAngularVelocity(float[] values) {
+        float[] v = values;
+        double vel = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+        zeroAngularMomentum = vel==0 ;
         if ( orientation == null )
             return ;
-        if ( axisFilter.getTimeSincveStart() < 10.0 )
+        if ( axisFilter.getTimeSincveStart() < 3.0 )
             return ;
         if ( integrator == null ) {
             integrator = new GyrosopicIntegrator( orientation ) ;
@@ -119,9 +151,63 @@ public class AxisDisplay extends View implements AttachDetach {
 
         //canvas.drawText( "text", 0, 100, white );
 
+        Vector<String> txt = new Vector<String>();
+        if ( geomRef != null ) {
+            txt.add( String.format( Locale.ENGLISH,  "Referenzwerte für Position" ) );
+            txt.add ( String.format( Locale.ENGLISH,  "\tlat %7.3f\u00B0 lon %7.3f\u00B0", location.getLatitude(), location.getLongitude())) ;
+            txt.add( String.format( Locale.ENGLISH,  "\tdec %7.1f\u00B0", geomRef.getDeclination() ) ) ;
+            txt.add( String.format( Locale.ENGLISH,  "\tinc %7.1f\u00B0", geomRef.getInclination() ) ) ;
+            txt.add(String.format( Locale.ENGLISH,  "\tB   %7.1f \u03BCT", geomRef.getFieldStrength()/1000.0 ) ) ;
+            double mx = dot ( matrix[0], magneticField ) ;
+         }
+
+        if ( magneticField != null && orientation != null ) {
+            float[] v = magneticField;
+            double bLen = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+            double Bx = dot(matrix[0], magneticField);
+            double By = dot(matrix[1], magneticField);
+            double Bz = dot(matrix[2], magneticField);
+            double Bplane = Math.sqrt(Bx * Bx + Bz * Bz);
+            double incl = Math.atan2(Bplane, Math.abs(By));
+            double decl = Math.atan2(Bx, By);
+            txt.add ( "Magnetfeld" ) ;
+            if ( false ) {
+                txt.add( String.format( Locale.ENGLISH, "\tBx   %6.1f \u03BCT", Bx ) ) ;
+                txt.add( String.format( Locale.ENGLISH, "\tBy   %6.1f \u03BCT", By ) ) ;
+                txt.add( String.format( Locale.ENGLISH, "\tBz   %6.1f \u03BCT", Bz ) ) ;
+            }
+
+            txt.add( String.format( Locale.ENGLISH, "\tinc  %6.1f\u00B0", incl*180.0/Math.PI ) ) ;
+            txt.add( String.format( Locale.ENGLISH, "\tdec  %6.1f\u00B0", decl*180.0/Math.PI ) ) ;
+            txt.add( String.format( Locale.ENGLISH, "\tB    %6.1f \u03BCT", bLen ) ) ;
+
+        }
+
+        if ( integrator!=null  && orientation!= null ) {
+            Quaternion delta = orientation.times(integrator.getState().inverse());
+            double i = delta.getI();
+            double j = delta.getJ();
+            double k = delta.getK();
+            double re = delta.getR() ;
+            double s = Math.sqrt(i * i + j * j + k * k);
+            double c = Math.abs(re);
+            double phi = Math.atan2(s, c)*2.0;
+            txt.add( "Abweichung "+String.format( Locale.ENGLISH, "%7.2f\u00B0", (phi*180.0/Math.PI))+" seit "+String.format( Locale.ENGLISH,  "%4.2f",(integrator.getSecsAfterStart())/60)+" min") ;
+            if ( zeroAngularMomentum ) {
+                txt.add ( "\tzero angular velocity!") ;
+            } else {
+                txt.add ( "\tnonzero angular velocity");
+            }
+        }
+
+        td.setText(txt);
+        td.getFullTextHeight() ;
+        int txtx = 100;
+        int txty = 100;
+        h = h - (int)td.getFullTextHeight()-txty ;
         int r = w > h ? h : w;
         int cx = w / 2;
-        int cy = h / 2;
+        int cy = (int)td.getFullTextHeight()+txty+h / 2;
         int scale = r / 3;
 
         if ( matrix != null ) {
@@ -146,6 +232,21 @@ public class AxisDisplay extends View implements AttachDetach {
         }
         if ( accelleration != null )
             drawVector( accelleration, canvas, cx, cy, scale/10, grey );
+
+        if ( !txt.isEmpty() ) {
+            //txt.add( "und noch eine Zeile") ;
+            td.setText( txt );
+            td.drawOnto( canvas, 100, 100 );
+        }
+
+    }
+
+    private double dot(double[] a, float[] b) {
+        double rv = 0.0;
+        for ( int i = 0 ; i < 3 ; i++ ){
+            rv += a[i]*b[i] ;
+        }
+        return rv ;
     }
 
     private void drawVector(float[] vector, Canvas canvas, float cx, float cy, float scale, Paint p) {
@@ -173,4 +274,23 @@ public class AxisDisplay extends View implements AttachDetach {
     }
 
 
+    @Override
+    public void onClick(View v) {
+
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+        clickCount++ ;
+        if ( integrator != null ) {
+            integrator.reset( orientation );
+        }
+        return false ;
+    }
+
+    @Override
+    public void onLocationChanged(@NonNull Location location) {
+        this.location = location ;
+        this.geomRef = new GeomagneticField((float) location.getLatitude(), (float) location.getLongitude(), (float) location.getAltitude(), new Date().getTime() ) ;
+    }
 }

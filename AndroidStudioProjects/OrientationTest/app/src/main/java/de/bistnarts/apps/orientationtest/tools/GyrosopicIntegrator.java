@@ -3,6 +3,7 @@ package de.bistnarts.apps.orientationtest.tools;
 public class GyrosopicIntegrator {
     private Quaternion state;
     private long lastTime;
+    private long startTime;
 
     public GyrosopicIntegrator (Quaternion q) {
         reset ( q ) ;
@@ -27,10 +28,14 @@ public class GyrosopicIntegrator {
     public void reset ( Quaternion q ) {
         this.state = q ;
         lastTime = System.nanoTime() ;
+        startTime = lastTime ;
     }
 
     public Quaternion getState () {
         return state ;
     }
 
+    public double getSecsAfterStart ()  {
+        return (lastTime-startTime)/1000000000.0 ;
+    }
 }

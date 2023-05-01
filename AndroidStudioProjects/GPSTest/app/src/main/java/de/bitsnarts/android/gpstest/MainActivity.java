@@ -86,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
 
         Intent intent = new Intent(this, GPSService.class);
         connection = new Connection () ;
-        boolean rv = bindService(intent, connection, Context.BIND_AUTO_CREATE);;
+        boolean rv = bindService(intent, connection, Context.BIND_AUTO_CREATE);
 
         locationListener = new LocationListener() {
             @Override
