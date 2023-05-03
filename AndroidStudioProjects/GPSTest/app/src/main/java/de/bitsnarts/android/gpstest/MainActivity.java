@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.graphics.Typeface;
 import android.location.GnssStatus;
 import android.location.Location;
 import android.location.LocationListener;
@@ -17,6 +18,7 @@ import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextPaint;
 import android.widget.TextView;
 
 //import com.example.hugomeder.gpstest.R;
@@ -25,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import de.bitsnarts.android.gps.service.GPSService;
 import de.bitsnarts.android.gps.service.IGPSService;
@@ -79,7 +82,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         //button = (Button) findViewById(R.id.button);
         textView = (TextView) findViewById(R.id.textView);
-
+        textView.setTextScaleX( 0.7f ) ;
+        textView.setTypeface( Typeface.MONOSPACE);
+        
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         //ComponentName rv = startService(new Intent(this, GPSService.class));
@@ -165,24 +170,24 @@ public class MainActivity extends AppCompatActivity {
                 "\n" + d +
                 "\nSats " + buf +
                 "\nHöhe über Ref-Ell." + location.getAltitude() + " m" +
-                "\nGeoid Höhe " + String.format("%3.4f", delta) + " m" +
-                "\nHöhe über Geoid " + String.format("%10.1f m, %10.1f ft", hog_m, hog_ft) +
-                "\nGravitation " + String.format("%3.8f", g) + " m/(s^2)" +
-                "\nGravitation ac " + String.format("%3.8f", ac) + " m/(s^2)" +
-                "\nLänge " + String.format("%3.5f", location.getLongitude()) + " \u00B0" +
-                "\nBreite " + String.format("%3.5f", location.getLatitude()) + " \u00B0" +
-                "\nGenauigkeit " + String.format("%10.1f", location.getAccuracy()) + " m" ;
+                "\nGeoid Höhe " + String.format(Locale.ENGLISH,"%3.4f", delta) + " m" +
+                "\nHöhe über Geoid " + String.format(Locale.ENGLISH,"%10.1f m, %10.1f ft", hog_m, hog_ft) +
+                "\nGravitation " + String.format(Locale.ENGLISH,"%3.8f", g) + " m/(s^2)" +
+                "\nGravitation ac " + String.format(Locale.ENGLISH,"%3.8f", ac) + " m/(s^2)" +
+                "\nLänge " + String.format(Locale.ENGLISH,"%3.5f", location.getLongitude()) + " \u00B0" +
+                "\nBreite " + String.format(Locale.ENGLISH,"%3.5f", location.getLatitude()) + " \u00B0" +
+                "\nGenauigkeit " + String.format(Locale.ENGLISH,"%10.1f", location.getAccuracy()) + " m" ;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            rv += "\nGenauigkeit (Höhe)" + String.format("%10.1f", location.getVerticalAccuracyMeters()) + " m";
+            rv += "\nGenauigkeit (Höhe)" + String.format(Locale.ENGLISH,"%10.1f", location.getVerticalAccuracyMeters()) + " m";
         }
         if ( vos.hasVel ) {
             double vN = vos.velNord * 3600.0 / 1000.0;
             double vE = vos.velEast *3600.0 / 1000.0;
             double v = Math.sqrt(vN * vN + vE * vE);
-            rv += "\nGeschwindigkeit "+String.format( "%3.1f km/h", v ) ;
+            rv += "\nGeschwindigkeit "+String.format(Locale.ENGLISH, "%3.1f km/h", v ) ;
             if ( v != 0.0 ) {
                 double phiDeg = Math.atan2( vE, vN )*180/Math.PI ;
-                rv += ", "+String.format( "%3.1f", phiDeg)+((char)0x00B0) ;
+                rv += ", "+String.format(Locale.ENGLISH, "%3.1f", phiDeg)+((char)0x00B0) ;
             }
         }
         return rv ;
