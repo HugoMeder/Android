@@ -1,12 +1,14 @@
 package de.bistnarts.apps.orientationtest;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -23,6 +25,7 @@ import com.google.android.material.tabs.TabLayoutMediator;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
+import java.util.Vector;
 
 import de.bistnarts.apps.orientationtest.tools.ContinousQuaternionFilter;
 import de.bistnarts.apps.orientationtest.tools.GNSSOneShoot;
@@ -40,8 +43,8 @@ public class MainActivity extends AppCompatActivity {
 
         TEXT ( R.layout.text_view, TextViewHolder.class, "Text" ),
         AXIS ( R.layout.axis_view, AxisViewHolder.class, "Mangetfield" ),
-        SPIRIT_LEVEL ( R.layout.spiritlevel_view, SpiritLevelViewHolder.class, "Wasserwaage" ) ;
-
+        SPIRIT_LEVEL ( R.layout.spiritlevel_view, SpiritLevelViewHolder.class, "Wasserwaage" ),
+        INTEGRATOR ( R.layout.integrator_view, IntegratorViewHolder.class, "Integrator" ) ;
         InitAttrs (int layout, java.lang.Class viewHolderClass, String tabName ) {
             this.layout = layout ;
             this.viewHolderClass = viewHolderClass ;
@@ -54,13 +57,16 @@ public class MainActivity extends AppCompatActivity {
         final String tabName;
     }
 
-    InitAttrs[] initAttrs = { InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
+    InitAttrs[] initAttrs = { InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
+    //InitAttrs[] initAttrs = { InitAttrs.SPIRIT_LEVEL } ;
+
     int numViews = initAttrs.length ;
 
         class MyAdapter extends  RecyclerView.Adapter implements SensorEventListener {
             private MyTabConfigurationStrategy strat = new MyTabConfigurationStrategy () ;
 
-            AbstractViewHolder views[] = new AbstractViewHolder[numViews] ;
+            //AbstractViewHolder views[] = new AbstractViewHolder[numViews] ;
+            private Vector<AbstractViewHolder> views = new Vector<AbstractViewHolder>() ;
 
             public TabLayoutMediator.TabConfigurationStrategy getStrategy() {
                 return strat ;
@@ -79,13 +85,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                 LayoutInflater infl = getLayoutInflater();
-                int cnt = parent.getChildCount() ;
-                System.out.println( "child count "+cnt );
+                //int cnt = parent.getChildCount() ;
+                int cnt = views.size() ;
+                System.out.println( "onCreateViewHolder "+cnt+" "+initAttrs[cnt].tabName );
                 View w =infl.inflate( initAttrs[cnt].layout, parent, false ) ;
                 try {
                     Constructor constr = initAttrs[cnt].viewHolderClass.getConstructor(View.class);
                     RecyclerView.ViewHolder rv = null;
                     rv = (RecyclerView.ViewHolder) constr.newInstance( w );
+                    views.add((AbstractViewHolder) rv) ;
                     return rv;
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
@@ -101,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position, @NonNull List payloads) {
                 super.onBindViewHolder(holder, position, payloads);
-                views[position] = (AbstractViewHolder) holder;
+                //views[position] = (AbstractViewHolder) holder;
                 System.out.println ( "onBindViewHolder "+position ) ;
             }
 
@@ -164,37 +172,37 @@ public class MainActivity extends AppCompatActivity {
         setContentView(view);
         viewPager = (ViewPager2) findViewById(R.id.pager);
         viewPager.setAdapter(adapter);
-        TabLayout tl = findViewById(R.id.tab_layout) ;
+        TabLayout tl = findViewById(R.id.tab_layout);
         //adapter
 
-        TabLayoutMediator med = new TabLayoutMediator( tl, viewPager, adapter.getStrategy() );
+        TabLayoutMediator med = new TabLayoutMediator(tl, viewPager, adapter.getStrategy());
         med.attach();
 
         SensorManager sensorManager;
         Sensor sensor;
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
         sensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         if (sensor != null) {
             sensorManager.registerListener(adapter, sensor, 1000000000);
             System.out.println("registered");
         }
-        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR );
+        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         if (sensor != null) {
             sensorManager.registerListener(adapter, sensor, 1000000000);
             System.out.println("registered");
         }
-        /*
-        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER );
+
+        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (sensor != null) {
             sensorManager.registerListener(adapter, sensor, 1000000000);
             System.out.println("registered");
-        }*/
-        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE );
+        }
+        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         if (sensor != null) {
             sensorManager.registerListener(adapter, sensor, 1000000000);
             System.out.println("registered");
         }
     }
-
 }

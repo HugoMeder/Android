@@ -126,7 +126,7 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
     public void setAccelleration(float[] values) {
         accelleration = values ;
     }
-    public void setAngularVelocity(float[] values) {
+    public void setAngularVelocity(float[] values, long timestamp ) {
         float[] v = values;
         double vel = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
         zeroAngularMomentum = vel==0 ;
@@ -135,9 +135,9 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
         if ( axisFilter.getTimeSincveStart() < 3.0 )
             return ;
         if ( integrator == null ) {
-            integrator = new GyrosopicIntegrator( orientation ) ;
+            integrator = new GyrosopicIntegrator( orientation, timestamp ) ;
         } else {
-            integrator.nextSpin( values );
+            integrator.nextSpin( values, timestamp );
         }
         integrator.getState().getMatrix33( imatrix );
     }
@@ -158,7 +158,7 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
             txt.add( String.format( Locale.ENGLISH,  "\tdec %7.1f\u00B0", geomRef.getDeclination() ) ) ;
             txt.add( String.format( Locale.ENGLISH,  "\tinc %7.1f\u00B0", geomRef.getInclination() ) ) ;
             txt.add(String.format( Locale.ENGLISH,  "\tB   %7.1f \u03BCT", geomRef.getFieldStrength()/1000.0 ) ) ;
-            double mx = dot ( matrix[0], magneticField ) ;
+            //double mx = dot ( matrix[0], magneticField ) ;
          }
 
         if ( magneticField != null && orientation != null ) {
@@ -283,7 +283,7 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
     public boolean onLongClick(View v) {
         clickCount++ ;
         if ( integrator != null ) {
-            integrator.reset( orientation );
+            integrator.reset( orientation, 0 );
         }
         return false ;
     }

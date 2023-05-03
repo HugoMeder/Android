@@ -1,18 +1,38 @@
 package de.bistnarts.apps.orientationtest;
 
+import static android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER;
+import static android.media.AudioManager.FX_KEY_CLICK;
+import static android.media.AudioManager.GET_DEVICES_OUTPUTS;
+import static android.provider.Settings.System.DEFAULT_RINGTONE_URI;
+
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import android.graphics.Typeface;
 import android.graphics.Xfermode;
+import android.media.AsyncPlayer;
+import android.media.AudioAttributes;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
+import android.media.midi.MidiDeviceInfo;
+import android.media.midi.MidiManager;
+import android.net.Uri;
 import android.util.AttributeSet;
 import android.view.View;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Vector;
+
 import de.bistnarts.apps.orientationtest.tools.LowPassFilter;
 import de.bistnarts.apps.orientationtest.tools.Quaternion;
+import de.bistnarts.apps.orientationtest.tools.TextDrawer;
 
-public class SpiritLevelDisplay extends View implements AttachDetach {
+public class SpiritLevelDisplay extends View implements AttachDetach, View.OnLongClickListener {
     private Quaternion orientation;
     double[][]matrix = new double[3][3] ;
     float[]vec = new float[3] ;
@@ -23,6 +43,10 @@ public class SpiritLevelDisplay extends View implements AttachDetach {
     private LowPassFilter axisFilter = new LowPassFilter ( 0.3f ) ;
     private Paint whiteFill;
     private Paint whiteStroke;
+    private AudioManager audioManager;
+
+    private int clickCount = 0 ;
+    private TextDrawer td;
 
     public SpiritLevelDisplay(Context context) {
         super(context);
@@ -52,11 +76,48 @@ public class SpiritLevelDisplay extends View implements AttachDetach {
         whiteStroke = new Paint();
         whiteStroke.setARGB( 255, 255, 255, 255 );
         whiteStroke.setStrokeWidth( sw );
+        whiteStroke.setTextSize( 50 );
+        whiteStroke.setTypeface( Typeface.MONOSPACE ) ;
+        whiteStroke.setTextScaleX( 0.7f );
+
         //whiteStroke.setXfermode( new PorterDuffXfermode( PorterDuff.Mode.)) ;
         rgb = new Paint[3];
         rgb[0] = red ;
         rgb[1] = green ;
         rgb[2] = blue ;
+        setOnLongClickListener( this );
+
+        //List<MidiDeviceInfo> midi = getMidiDevices(true);
+        checkAudio () ;
+
+        td = new TextDrawer ( whiteStroke ) ;
+    }
+
+    private void checkAudio() {
+        audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_OUTPUTS);
+        AudioDeviceInfo device = null ;
+        for ( AudioDeviceInfo d : devices ) {
+            if ( d.getType() == TYPE_BUILTIN_SPEAKER ) {
+                device = d;
+                break ;
+            }
+        }
+        System.out.println(  "audio?" );
+    }
+
+    private List<MidiDeviceInfo> getMidiDevices(boolean isOutput){
+        Vector<MidiDeviceInfo> filteredMidiDevices = new Vector<MidiDeviceInfo>();
+        MidiManager mMidiManager = (MidiManager)getContext().getSystemService(Context.MIDI_SERVICE);
+
+        for (MidiDeviceInfo midiDevice : mMidiManager.getDevices()){
+            if (isOutput){
+                if (midiDevice.getOutputPortCount() > 0) filteredMidiDevices.add(midiDevice);
+            } else {
+                if (midiDevice.getInputPortCount() > 0) filteredMidiDevices.add(midiDevice);
+            }
+        }
+        return filteredMidiDevices;
     }
 
     public void setOrientation(float[] ori) {
@@ -70,6 +131,11 @@ public class SpiritLevelDisplay extends View implements AttachDetach {
     protected void onDraw(Canvas canvas) {
 
         super.onDraw( canvas );
+
+        Vector<String> txt = new Vector<String>();
+        td.setText( txt ) ;
+        txt.add( String.format( Locale.ENGLISH, "click count "+clickCount ) ) ;
+        td.drawOnto( canvas, 100, 100 );
         if ( matrix == null )
             return ;
         int w = getWidth();
@@ -79,8 +145,8 @@ public class SpiritLevelDisplay extends View implements AttachDetach {
         float cy = h / 2;
         float scale = r / 3;
 
-        double degreePerUnit = 1 ;
-        double f = degreePerUnit / (Math.PI / 180.0);
+        double degreePerUnit = 5 ;
+        double f = 1.0 / (degreePerUnit*Math.PI / 180.0);
         float dx = (float) (matrix[2][0] * scale * f);
         float dy = (float) (matrix[2][1] * scale * f);
 
@@ -111,6 +177,24 @@ public class SpiritLevelDisplay extends View implements AttachDetach {
 
     @Override
     public boolean isAttached() {
+        return false;
+    }
+
+    @Override
+    public boolean onLongClick(View v) {
+        /*if ( audioManager != null ) {
+            audioManager.playSoundEffect( FX_KEY_CLICK, 1 );
+            clickCount++ ;
+            invalidate();
+        }*/
+        AsyncPlayer p = new AsyncPlayer( ("ping") ) ;
+        AudioAttributes attr = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build();
+        Uri uri = DEFAULT_RINGTONE_URI;
+        p.play( getContext(), uri, false, attr );
+        clickCount++ ;
         return false;
     }
 }

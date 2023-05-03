@@ -30,7 +30,7 @@ public class AxisViewHolder extends AbstractViewHolder {
                 axisDisplay.setAccelleration ( event.values ) ;
                 break ;
             case Sensor.TYPE_GYROSCOPE:
-                axisDisplay.setAngularVelocity ( event.values ) ;
+                axisDisplay.setAngularVelocity ( event.values, event.timestamp ) ;
         }
     }
 

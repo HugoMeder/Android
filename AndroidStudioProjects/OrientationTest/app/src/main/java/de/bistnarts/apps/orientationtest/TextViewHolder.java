@@ -7,7 +7,13 @@ import android.widget.TextView;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
-public class TextViewHolder extends AbstractViewHolder {
+import java.util.Map;
+import java.util.Vector;
+
+import de.bistnarts.apps.orientationtest.tools.TimeSeqAnalysis;
+import de.bistnarts.apps.orientationtest.tools.TimeSeqListener;
+
+public class TextViewHolder extends AbstractViewHolder implements TimeSeqListener {
 
     TextView textView ;
     long lastTime ;
@@ -16,15 +22,21 @@ public class TextViewHolder extends AbstractViewHolder {
     private Float temperature;
     private float[] accelleration;
 
+    private TimeSeqAnalysis timeSeq = new TimeSeqAnalysis () ;
+    private Vector<SensorEvent> eventBlock;
+    private long nextTimestamp;
+
     public TextViewHolder(View itemView ) {
         super( itemView );
         ConstraintLayout view = (ConstraintLayout) itemView;
         textView = (TextView) view.getViewById(R.id.textView);
         textView.setText("pos " + getAdapterPosition());
+        timeSeq.setTimeSeqListener( this );
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
+        timeSeq.onSensorChanged( event );
         int type = event.sensor.getType();
         switch ( type ) {
             case Sensor.TYPE_MAGNETIC_FIELD :
@@ -72,6 +84,14 @@ public class TextViewHolder extends AbstractViewHolder {
             double len = Math.sqrt(vals[0] * vals[0] + vals[1] * vals[1] + vals[2] * vals[2] );
             sb.append( "accelleration\nx "+vals[0]+"\ny "+vals[1]+"\nz"+vals[2]+"\nabs "+len+"\n" );
         }
+        if ( eventBlock != null ) {
+            sb.append( "event block "+eventBlock.size()+"\n" ) ;
+            String line = "event statistics ";
+            for  ( Map.Entry<Integer,Integer> e : timeSeq.getStatistics().entrySet() ) {
+                line = line+" "+e.getKey()+"->"+e.getValue() ;
+            }
+            sb.append( line+"\n") ;
+        }
         textView.setText( sb );
     }
 
@@ -81,4 +101,9 @@ public class TextViewHolder extends AbstractViewHolder {
 
     }
 
+    @Override
+    public void timestampChanged(Vector<SensorEvent> events, long lastTimestamp, long newTimestamp) {
+        this.eventBlock = events ;
+        this.nextTimestamp = newTimestamp ;
+    }
 }
