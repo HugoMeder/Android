@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
         textView = (TextView) findViewById(R.id.textView);
         textView.setTextScaleX( 0.7f ) ;
         textView.setTypeface( Typeface.MONOSPACE);
-        
+
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         //ComponentName rv = startService(new Intent(this, GPSService.class));
