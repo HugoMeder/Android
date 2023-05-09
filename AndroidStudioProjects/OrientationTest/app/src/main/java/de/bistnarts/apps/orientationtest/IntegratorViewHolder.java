@@ -1,5 +1,6 @@
 package de.bistnarts.apps.orientationtest;
 
+import android.app.Activity;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.view.View;
@@ -9,8 +10,8 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 public class IntegratorViewHolder extends AbstractViewHolder {
     private final IntegratorDisplay integratorDisplay;
 
-    public IntegratorViewHolder(View itemView) {
-        super(itemView);
+    public IntegratorViewHolder(View itemView, Activity activity ) {
+        super(itemView, activity ) ;
         ConstraintLayout view = (ConstraintLayout) itemView;
         integratorDisplay = (IntegratorDisplay) view.getViewById(R.id.integratorView);
 

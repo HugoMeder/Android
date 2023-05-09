@@ -4,9 +4,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.Sensor;
@@ -15,6 +17,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -67,9 +70,14 @@ public class MainActivity extends AppCompatActivity {
 
             //AbstractViewHolder views[] = new AbstractViewHolder[numViews] ;
             private Vector<AbstractViewHolder> views = new Vector<AbstractViewHolder>() ;
+            private AbstractViewHolder boundHolder;
 
             public TabLayoutMediator.TabConfigurationStrategy getStrategy() {
                 return strat ;
+            }
+
+            public boolean onContextItemSelected(MenuItem item) {
+                return boundHolder.onContextItemSelected(item) ;
             }
 
             class MyTabConfigurationStrategy implements TabLayoutMediator.TabConfigurationStrategy {
@@ -90,9 +98,9 @@ public class MainActivity extends AppCompatActivity {
                 System.out.println( "onCreateViewHolder "+cnt+" "+initAttrs[cnt].tabName );
                 View w =infl.inflate( initAttrs[cnt].layout, parent, false ) ;
                 try {
-                    Constructor constr = initAttrs[cnt].viewHolderClass.getConstructor(View.class);
+                    Constructor constr = initAttrs[cnt].viewHolderClass.getConstructor(View.class, Activity.class );
                     RecyclerView.ViewHolder rv = null;
-                    rv = (RecyclerView.ViewHolder) constr.newInstance( w );
+                    rv = (RecyclerView.ViewHolder) constr.newInstance( w, MainActivity.this );
                     views.add((AbstractViewHolder) rv) ;
                     return rv;
                 } catch (IllegalAccessException e) {
@@ -109,7 +117,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position, @NonNull List payloads) {
                 super.onBindViewHolder(holder, position, payloads);
-                //views[position] = (AbstractViewHolder) holder;
+                boundHolder = (AbstractViewHolder) holder ;
                 System.out.println ( "onBindViewHolder "+position ) ;
             }
 
@@ -167,6 +175,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        checkPermissions_ () ;
         adapter = new MyAdapter();
         int view = R.layout.pager;
         setContentView(view);
@@ -205,4 +214,15 @@ public class MainActivity extends AppCompatActivity {
             System.out.println("registered");
         }
     }
+
+    private void checkPermissions_() {
+        //int ok = checkCallingOrSelfPermission("READ_EXTERNAL_STORAGE");
+            //checkSelfPermission( this, Manifest.permission.) ;
+    }
+
+    @Override
+    public boolean onContextItemSelected(@NonNull MenuItem item) {
+        return adapter.onContextItemSelected ( item ) ;
+    }
+
 }

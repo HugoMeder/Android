@@ -1,5 +1,7 @@
 package de.bistnarts.apps.orientationtest.tools;
 
+import de.bistnarts.apps.orientationtest.SpiritLevelDisplay;
+
 public class PathIntegrator {
 
     private final GyrosopicIntegrator gi;
@@ -64,8 +66,8 @@ public class PathIntegrator {
         return accWS ;
     }
 
-    public void reset(Quaternion orientation, double[] position, double[] velocity, long timestamp ) {
-        gi.reset( orientation, timestamp );
+    public void reset(Quaternion orientation, double[] position, double[] velocity, long timestamp, GyrosopicAxisListener listener ) {
+        gi.reset( orientation, timestamp, listener );
         if ( position != null ) {
             for ( int i = 0 ; i < 3 ; i++ ){
                 posWS[i] = position[i];
@@ -86,4 +88,8 @@ public class PathIntegrator {
         }
         this.lastAcc = timestamp ;
    }
+
+    public void reset(Quaternion orientation, double[] position, double[] velocity, long timestamp ) {
+        reset( orientation, position, velocity, timestamp, null );
+    }
 }

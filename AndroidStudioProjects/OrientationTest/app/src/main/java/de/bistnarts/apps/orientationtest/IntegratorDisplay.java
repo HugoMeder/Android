@@ -18,11 +18,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
 
+import de.bistnarts.apps.orientationtest.tools.GyrosopicAxisListener;
+import de.bistnarts.apps.orientationtest.tools.GyrosopicIntegrator;
 import de.bistnarts.apps.orientationtest.tools.PathIntegrator;
 import de.bistnarts.apps.orientationtest.tools.Quaternion;
 import de.bistnarts.apps.orientationtest.tools.TextDrawer;
 
-public class IntegratorDisplay extends View implements AttachDetach, View.OnLongClickListener {
+public class IntegratorDisplay extends View implements AttachDetach, View.OnLongClickListener, GyrosopicAxisListener {
     private Quaternion orientation = new Quaternion(1, 0, 0, 0);
     private double[][] oMat = new double[3][3] ;
     double[][]matrix = new double[3][3] ;
@@ -47,6 +49,7 @@ public class IntegratorDisplay extends View implements AttachDetach, View.OnLong
     private long startTime;
     private Camera cam;
     private boolean LEDon;
+    private GyrosopicIntegrator.AxisMeasurementResult axisMeasurement;
 
     public IntegratorDisplay(Context context) {
         super(context);
@@ -180,6 +183,15 @@ public class IntegratorDisplay extends View implements AttachDetach, View.OnLong
             txt.add( "\tomega" ) ;
             txt.add( "\t\t"+String.format( Locale.ENGLISH, "freq %7.3f Hertz", (numAngularEvents/secs))) ;
         }
+        if ( axisMeasurement != null ) {
+            txt.add( "axis measurement" ) ;
+            String strxyz = "xyz" ;
+            double[] axis = axisMeasurement.getAxis();
+            for ( int i = 0 ; i < 3 ; i++ ) {
+                txt.add( "\taxis["+strxyz.charAt(i)+"] "+String.format(Locale.ENGLISH, "%10.3f", axis[i])) ;
+            }
+            txt.add( String.format( Locale.ENGLISH, "\terror %10.5f", axisMeasurement.getError()) ) ;
+        }
         td.setText(txt);
         td.getFullTextHeight() ;
         int txtx = 100;
@@ -257,7 +269,7 @@ public class IntegratorDisplay extends View implements AttachDetach, View.OnLong
     @Override
     public boolean onLongClick(View v) {
         if ( integrator != null ) {
-            integrator.reset( orientation, null, null, 0 );
+            integrator.reset( orientation, null, null, 0, this );
         }
         resetCounters();
         toggle_LED() ;
@@ -300,6 +312,13 @@ public class IntegratorDisplay extends View implements AttachDetach, View.OnLong
         }
         return c ;
     }
+
+    @Override
+    public void axisReady(GyrosopicIntegrator.AxisMeasurementResult result) {
+        this.axisMeasurement = result ;
+        invalidate();
+    }
+
 
     /*public void setAccelerationAndAngularMomentum(float[] acceleration, float[] angularVelocity, long timestamp) {
         setAccelleration( acceleration );

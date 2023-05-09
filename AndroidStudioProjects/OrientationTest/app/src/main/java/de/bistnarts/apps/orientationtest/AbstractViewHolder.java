@@ -1,19 +1,20 @@
 package de.bistnarts.apps.orientationtest;
 
+import android.app.Activity;
 import android.hardware.SensorEventListener;
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.TextView;
 
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
 abstract class AbstractViewHolder extends RecyclerView.ViewHolder implements SensorEventListener, AttachDetach {
 
+    protected final Activity activity;
     private boolean attached;
 
-    public AbstractViewHolder(View itemView ) {
-
+    public AbstractViewHolder(View itemView, Activity activity ) {
         super(itemView);
+        this.activity =  activity ;
     }
 
     @Override
@@ -31,4 +32,7 @@ abstract class AbstractViewHolder extends RecyclerView.ViewHolder implements Sen
         return attached ;
     }
 
+    public boolean onContextItemSelected(MenuItem item) {
+        return false;
+    }
 }

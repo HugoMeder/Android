@@ -1,5 +1,6 @@
 package de.bistnarts.apps.orientationtest;
 
+import android.app.Activity;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.view.View;
@@ -26,8 +27,8 @@ public class TextViewHolder extends AbstractViewHolder implements TimeSeqListene
     private Vector<SensorEvent> eventBlock;
     private long nextTimestamp;
 
-    public TextViewHolder(View itemView ) {
-        super( itemView );
+    public TextViewHolder(View itemView, Activity activity) {
+        super( itemView, activity );
         ConstraintLayout view = (ConstraintLayout) itemView;
         textView = (TextView) view.getViewById(R.id.textView);
         textView.setText("pos " + getAdapterPosition());

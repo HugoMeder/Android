@@ -1,18 +1,15 @@
 package de.bistnarts.apps.orientationtest;
 
 import static android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER;
-import static android.media.AudioManager.FX_KEY_CLICK;
 import static android.media.AudioManager.GET_DEVICES_OUTPUTS;
-import static android.provider.Settings.System.DEFAULT_RINGTONE_URI;
 
+import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
-import android.content.Intent;
+import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
 import android.graphics.Typeface;
-import android.graphics.Xfermode;
 import android.media.AsyncPlayer;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceInfo;
@@ -20,33 +17,190 @@ import android.media.AudioManager;
 import android.media.midi.MidiDeviceInfo;
 import android.media.midi.MidiManager;
 import android.net.Uri;
+import android.os.Environment;
 import android.util.AttributeSet;
+import android.view.ContextMenu;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 
-import java.util.ArrayList;
+import androidx.annotation.NonNull;
+
+import java.io.File;
 import java.util.List;
 import java.util.Locale;
 import java.util.Vector;
 
+import de.bistnarts.apps.orientationtest.tools.GyrosopicAxisListener;
+import de.bistnarts.apps.orientationtest.tools.GyrosopicIntegrator;
 import de.bistnarts.apps.orientationtest.tools.LowPassFilter;
+import de.bistnarts.apps.orientationtest.tools.MatrixFromVectorPair;
+import de.bistnarts.apps.orientationtest.tools.PathIntegrator;
 import de.bistnarts.apps.orientationtest.tools.Quaternion;
 import de.bistnarts.apps.orientationtest.tools.TextDrawer;
+import de.bistnarts.apps.orientationtest.tools.VectorOps;
 
-public class SpiritLevelDisplay extends View implements AttachDetach, View.OnLongClickListener {
-    private Quaternion orientation;
-    double[][]matrix = new double[3][3] ;
-    float[]vec = new float[3] ;
+public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestureDetector.OnScaleGestureListener, GyrosopicAxisListener {
+
+    private LowPassFilter accFilter;
+    private LowPassFilter omegaFilter;
+    private boolean doSample;
+    private long startSampleTimeMs;
+    private float[] omega;
+    private double omegaAbsDeg;
+    private boolean waitForRest;
+    private long scaleTimeMS;
+    private boolean scaled;
+    private LowPassFilter omegaAbsFilter;
+    private float omegaAbsDeg2;
+    private double [] zAxis = {0.0, 0.0, 1.0} ;
+    private double[] calibAxis = zAxis ;
+    private MatrixFromVectorPair mfvp;
+    private boolean doShow = true ;
+    private Activity activity;
+    private boolean scaling;
+    static Vector<MenuEntry> entries = new Vector<MenuEntry>() ;
+    private MenuEntry menuEntryStartOnRest;
+    private GyrosopicIntegrator gyro;
+    private double[] rotationAxis;
+
+    enum MenuEntry {
+        CALIB_AXIS ("Axe kalibrieren" ),
+        CALIB_ACCELERATION ( "Lot kalibrieren" ) ;
+
+        private final String title;
+        private final int id;
+
+        MenuEntry(String title ) {
+            this.title = title ;
+            entries.add( this ) ;
+            id = entries.size() ;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        static MenuEntry fromID (int id ) {
+            return entries.get( id-1 ) ;
+        }
+    } ;
+    public void setActivity(Activity activity) {
+        this.activity = activity ;
+        activity.registerForContextMenu ( this ) ;
+    }
+
+    public boolean onContextItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        MenuEntry me = MenuEntry.fromID(id);
+        switch ( me ) {
+            case CALIB_AXIS:
+            case CALIB_ACCELERATION:
+                menuEntryStartOnRest = me ;
+        }
+        showDialog ().show(); ;
+        return false ;
+    }
+
+    private AlertDialog showDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+        StringBuffer txt = new StringBuffer();
+        switch ( menuEntryStartOnRest ) {
+            case CALIB_ACCELERATION:
+                txt.append( "lege das Gerät aufs Gesicht\n"+
+                        "und warte bis ein Ton erklingt\n"+
+                        ", dann warte das Ende der Axenkalibrierung ab,\n"+
+                        "dann ertönt ein zweiter Ton"
+                ) ;
+                break ;
+            case CALIB_AXIS:
+                txt.append( "lege das Gerät aufs Gesicht\n"+
+                        "und warte bis ein Ton erklingt)\n"+
+                        ", dann drehe das Gerät um 360\u00B0\n"+
+                        ", es ertönt dann ein zweiter Ton"
+                ) ;
+                break ;
+        }
+        builder.setMessage(txt.toString())
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        switch ( menuEntryStartOnRest ) {
+                            case CALIB_AXIS:
+                            case CALIB_ACCELERATION:
+                                waitForRest = true ;
+                        }
+
+                    }
+                })
+                .setNegativeButton("Abbruch", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                    }
+                });
+        // Create the AlertDialog object and return it
+        return builder.create();
+    }
+
+    class AccelerationAccumulator {
+        Vector<double[]> acc = new Vector<double[]> () ;
+        double[] avg = new double[3] ;
+        double sigma;
+        int n ;
+        void add ( float[] values ) {
+            double[] normal = getNormal(values);
+            acc.add ( normal ) ;
+        }
+
+        public void evaluate() {
+            n = acc.size();
+            for (int i = 0; i < 3; i++) {
+                avg[i] = 0 ;
+            }
+            for (double[] doubles : acc) {
+                for (int i = 0; i < 3; i++) {
+                    avg[i] += doubles[i];
+                }
+            }
+            for (int i = 0; i < 3; i++) {
+                avg[i] /= n;
+            }
+            avg = getNormal( avg ) ;
+            double deltaSqr = 0 ;
+            for (double[] doubles : acc) {
+                for (int i = 0; i < 3; i++) {
+                    double delta = avg[i]-doubles[i] ;
+                    deltaSqr += delta*delta ;
+                }
+            }
+            sigma = Math.sqrt( deltaSqr/n ) ;
+            acc.clear();
+        }
+    }
     private Paint red;
     private Paint green;
     private Paint blue;
     private Paint[] rgb;
-    private LowPassFilter axisFilter = new LowPassFilter ( 0.3f ) ;
     private Paint whiteFill;
     private Paint whiteStroke;
     private AudioManager audioManager;
 
     private int clickCount = 0 ;
     private TextDrawer td;
+    private ScaleGestureDetector scaleGesture;
+    private float scaleFactor;
+    private double scale = 1f ;
+    private float[] acceleration;
+    private double unit[][] = {{1.0, 0.0, 0.0},
+            {0.0, 1.0, 0.0},
+            {0.0, 0.0, 1.0}} ;
+    private double matrix[][] = unit ;
+
+    private AccelerationAccumulator accelerationAccumulator ;
 
     public SpiritLevelDisplay(Context context) {
         super(context);
@@ -85,14 +239,45 @@ public class SpiritLevelDisplay extends View implements AttachDetach, View.OnLon
         rgb[0] = red ;
         rgb[1] = green ;
         rgb[2] = blue ;
-        setOnLongClickListener( this );
+        //setOnLongClickListener( this );
 
         //List<MidiDeviceInfo> midi = getMidiDevices(true);
         checkAudio () ;
 
         td = new TextDrawer ( whiteStroke ) ;
+
+        scaleGesture = new ScaleGestureDetector( getContext(), this ) ;
+        accFilter = new LowPassFilter( 0.3 ) ;
+        omegaFilter = new LowPassFilter( 1 ) ;
+        omegaAbsFilter = new LowPassFilter( 1 ) ;
+
+        mfvp = new MatrixFromVectorPair() ;
+
+
+
     }
 
+    @Override
+    protected void onCreateContextMenu(ContextMenu menu) {
+        if ( !scaling ) {
+            MenuEntry me = MenuEntry.CALIB_AXIS ;
+            MenuItem mi = menu.add(Menu.NONE, me.getId(), Menu.NONE, me.getTitle() );
+            me = MenuEntry.CALIB_ACCELERATION ;
+            mi = menu.add(Menu.NONE, me.getId(), Menu.NONE, me.getTitle() );
+            //menu.add("zwei");
+            /*SubMenu sub = menu.addSubMenu ( "sub" ) ;
+            //menu.add ( sub ) ;
+            sub.add( "sub1" ) ;
+            sub.add( "sub2" ) ;
+            */
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        scaleGesture.onTouchEvent( ev ) ;
+        return super.onTouchEvent( ev ) ;
+    }
     private void checkAudio() {
         audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_OUTPUTS);
@@ -120,45 +305,100 @@ public class SpiritLevelDisplay extends View implements AttachDetach, View.OnLon
         return filteredMidiDevices;
     }
 
-    public void setOrientation(float[] ori) {
-        float[] values = axisFilter.filter(ori);
-        orientation = new Quaternion ( values[3], values[0], values[1], values[2] ).normalize() ;
-        orientation.getMatrix33( matrix );
-        invalidate () ;
-    }
 
     @Override
     protected void onDraw(Canvas canvas) {
 
+        if ( !doShow )
+            return ;
         super.onDraw( canvas );
 
         Vector<String> txt = new Vector<String>();
+        if ( accelerationAccumulator != null ) {
+            if ( !doSample ) {
+                txt.add( "samples "+accelerationAccumulator.n ) ;
+                txt.add( String.format( Locale.ENGLISH, "sigma %5.3f\u00B0", (accelerationAccumulator.sigma*180.0/Math.PI ))) ;
+            } else {
+                txt.add( "samples "+accelerationAccumulator.acc.size() ) ;
+            }
+        }
+        if ( omega != null && waitForRest ) {
+            txt.add( String.format( Locale.ENGLISH, "Winkelgeschwindigkeit %10.5f\u00B0/sec", omegaAbsDeg2 ) ) ;
+        }
+        if ( calibAxis != null ) {
+            txt.add ( "Lotrichtung" ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tx %10.3f", calibAxis[0] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\ty %10.3f", calibAxis[1] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tz %10.3f", calibAxis[2] ) ) ;
+        }
+        if ( rotationAxis != null ) {
+            txt.add ( "Rotations-Achse" ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tx %10.3f", rotationAxis[0] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\ty %10.3f", rotationAxis[1] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tz %10.3f", rotationAxis[2] ) ) ;
+        }
+        if ( calibAxis != null && rotationAxis != null ) {
+            double cos = VectorOps.dot(calibAxis, rotationAxis);
+            double sin = VectorOps.len(VectorOps.cross(calibAxis, rotationAxis));
+            double phi = Math.atan2(sin, cos);
+            txt.add ( String.format( Locale.ENGLISH, "Winkel zwischen Achse und Lot %10.2f", (phi*180/Math.PI) ) ) ;
+        }
         td.setText( txt ) ;
-        txt.add( String.format( Locale.ENGLISH, "click count "+clickCount ) ) ;
+        txt.add( String.format( Locale.ENGLISH, "scale %10.3f %10.3f", scaleFactor, scale ) ) ;
         td.drawOnto( canvas, 100, 100 );
-        if ( matrix == null )
-            return ;
         int w = getWidth();
         int h = getHeight();
         float r = w > h ? h : w;
         float cx = w / 2;
         float cy = h / 2;
         float scale = r / 3;
-
+        scale *= this.scale ;
         double degreePerUnit = 5 ;
         double f = 1.0 / (degreePerUnit*Math.PI / 180.0);
-        float dx = (float) (matrix[2][0] * scale * f);
-        float dy = (float) (matrix[2][1] * scale * f);
+        double n[] = getNormal ( acceleration ) ;
+        double[] acc;
+        acc = new double[3] ;
+        for ( int i = 0 ; i < 3 ; i++ )
+            acc[i] = acceleration[i] ;
+        matrix = mfvp.getMatrixFromVectorPair( calibAxis, acc ) ;
+        float dx = (float) ( matrix[2][0] * scale * f);
+        float dy = (float) ( matrix[2][1] * scale * f);
+
 
         canvas.drawCircle( cx+dx, cy-dy, (float) (scale*0.2), whiteFill );
-
-        for ( int i = 0 ; i < 2 ; i++ ) {
-            for ( int j = 0 ; j < 3 ; j++ ) {
-                vec[j] = (float)matrix[i][j] ;
-            }
-            drawAxis( vec, canvas, cx, cy, scale, whiteStroke ) ;
-        }
+        canvas.drawLine( 0, cy, w, cy, whiteFill );
+        canvas.drawLine( cx, 0, cx, h, whiteFill );
     }
+
+    private double[] xform(double[][] matrix, double[] v) {
+        double[] rv = new double[3];
+        for ( int i = 0 ; i < 3 ; i++ ) {
+            double sum = 0.0;
+            for ( int j = 0 ; j < 3 ; j++ ) {
+                sum += matrix[i][j]*v[j] ;
+            }
+            rv[i] = sum ;
+        }
+        return rv ;
+    }
+
+    private double[] getNormal(float[] v) {
+        double[] rv = new double[3];
+        double l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+        for ( int i = 0 ; i < 3 ; i++ ) {
+            rv[i] = v[i]/l ;
+        }
+        return rv ;
+    }
+    private double[] getNormal(double[] v) {
+        double[] rv = new double[3];
+        double l = Math.sqrt(v[0] * v[0] + v[1] *v[1] + v[2] * v[2]);
+        for ( int i = 0 ; i < 3 ; i++ ) {
+            rv[i] = v[i]/l ;
+        }
+        return rv ;
+    }
+
 
     private void drawAxis(float[] vector, Canvas canvas, float cx, float cy, float scale, Paint p) {
         canvas.drawLine( -vector[0]*scale+cx, cy+vector[1]*scale, vector[0]*scale+cx, cy-vector[1]*scale, p );
@@ -167,7 +407,8 @@ public class SpiritLevelDisplay extends View implements AttachDetach, View.OnLon
 
     @Override
     public void attach() {
-        axisFilter.reset();
+        accFilter.reset();
+        omegaFilter.reset();
     }
 
     @Override
@@ -179,22 +420,104 @@ public class SpiritLevelDisplay extends View implements AttachDetach, View.OnLon
     public boolean isAttached() {
         return false;
     }
+    void startGravityCalibration() {
+        playSound ( true ) ;
+        doSample = true ;
+        accelerationAccumulator = new AccelerationAccumulator() ;
+        startSampleTimeMs = System.currentTimeMillis() ;
+        clickCount++ ;
+    }
 
-    @Override
-    public boolean onLongClick(View v) {
-        /*if ( audioManager != null ) {
-            audioManager.playSoundEffect( FX_KEY_CLICK, 1 );
-            clickCount++ ;
-            invalidate();
-        }*/
+    private void endGravityCalibration() {
+        accelerationAccumulator.evaluate () ;
+        doSample = false ;
+        playSound( false );
+        calibAxis = accelerationAccumulator.avg.clone() ;
+        invalidate();
+    }
+
+    private void startAxisCalibration() {
+        if ( gyro != null ) {
+            playSound( true );
+            gyro.setListener( this );
+        }
+    }
+
+    private void playSound( boolean start ) {
         AsyncPlayer p = new AsyncPlayer( ("ping") ) ;
         AudioAttributes attr = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build();
-        Uri uri = DEFAULT_RINGTONE_URI;
+        File dir = getContext().getExternalFilesDir(  Environment.DIRECTORY_RINGTONES ) ;
+        File file = start ? new File(dir, "very_short_notif.mp3") : new File(dir, "verry_short_sms.mp3") ;
+
+        Uri uri = Uri.fromFile(file);
         p.play( getContext(), uri, false, attr );
-        clickCount++ ;
-        return false;
+
+    }
+
+    @Override
+    public boolean onScale(@NonNull ScaleGestureDetector detector) {
+        scaleFactor = detector.getScaleFactor();
+        scale *= scaleFactor ;
+        invalidate();
+        markScaleActivity () ;
+        return true;
+    }
+
+    private void markScaleActivity() {
+        scaleTimeMS = System.currentTimeMillis();
+        scaled = true ;
+        scaling = true ;
+    }
+
+    @Override
+    public boolean onScaleBegin(@NonNull ScaleGestureDetector detector) {
+        markScaleActivity () ;
+        return true;
+    }
+
+    @Override
+    public void onScaleEnd(@NonNull ScaleGestureDetector detector) {
+        scaling = false ;
+    }
+
+    public void setAcceleration(float[] values) {
+        if ( !doSample ) {
+            this.acceleration = accFilter.filter(values);
+        } else {
+            this.accelerationAccumulator.add( accFilter.filter(values) );
+            if ( (System.currentTimeMillis()-startSampleTimeMs)>10*1000 ) {
+                endGravityCalibration() ;
+            }
+        }
+        invalidate();
+    }
+    public void setAngularVelocity(float[] values, long timestampnano ) {
+        omega = omegaFilter.filter( values ) ;
+        omegaAbsDeg = Math.sqrt(omega[0] * omega[0] + omega[1] * omega[1] + omega[2] * omega[2])*180.0/Math.PI ;
+        omegaAbsDeg2 = omegaAbsFilter.filter(omegaAbsDeg);
+        if ( waitForRest && omegaAbsDeg2 < 0.1 ) {
+            switch ( this.menuEntryStartOnRest ) {
+                case CALIB_AXIS:
+                    startAxisCalibration();
+                    break ;
+                case CALIB_ACCELERATION:
+                    startGravityCalibration();
+                    break ;
+            }
+            waitForRest = false ;
+        }
+        if ( gyro == null ) {
+            gyro = new GyrosopicIntegrator(new Quaternion(1,0,0,0), timestampnano ) ;
+        }
+        gyro.nextSpin(values, timestampnano);
+    }
+
+    @Override
+    public void axisReady(GyrosopicIntegrator.AxisMeasurementResult result) {
+        playSound( false );
+        rotationAxis = result.getAxis() ;
     }
 }
