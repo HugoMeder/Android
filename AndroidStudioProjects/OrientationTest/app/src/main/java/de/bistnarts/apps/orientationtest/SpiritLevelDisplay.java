@@ -31,15 +31,17 @@ import androidx.annotation.NonNull;
 import java.io.File;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.Vector;
 
 import de.bistnarts.apps.orientationtest.tools.GyrosopicAxisListener;
 import de.bistnarts.apps.orientationtest.tools.GyrosopicIntegrator;
 import de.bistnarts.apps.orientationtest.tools.LowPassFilter;
 import de.bistnarts.apps.orientationtest.tools.MatrixFromVectorPair;
-import de.bistnarts.apps.orientationtest.tools.PathIntegrator;
+import de.bistnarts.apps.orientationtest.tools.PropertyAccess;
 import de.bistnarts.apps.orientationtest.tools.Quaternion;
 import de.bistnarts.apps.orientationtest.tools.TextDrawer;
+import de.bistnarts.apps.orientationtest.tools.TiltCalibration;
 import de.bistnarts.apps.orientationtest.tools.VectorOps;
 
 public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestureDetector.OnScaleGestureListener, GyrosopicAxisListener {
@@ -65,10 +67,23 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
     private MenuEntry menuEntryStartOnRest;
     private GyrosopicIntegrator gyro;
     private double[] rotationAxis;
+    private double rotationAxisError;
+    private TiltCalibration axisAndAngle;
+    private long axisAndAngleSTartTimeMS;
+    private double[] tiltAxis;
+    private double tiltAxisToGravityAngle;
+    private double tiltAxisToGravityAngleError;
+
+    private PropertyAccess propertyAccess ;
+    private Paint wheelStroke;
+    private Paint wheelText;
+    private boolean textOn;
 
     enum MenuEntry {
-        CALIB_AXIS ("Axe kalibrieren" ),
-        CALIB_ACCELERATION ( "Lot kalibrieren" ) ;
+        CALIB_AXIS ("Ache kalibrieren" ),
+        CALIB_ACCELERATION ( "Lot kalibrieren" ),
+        CALIB_AXIS_AND_ANGLE ( "Wasserwaage kalibrieren"),
+        TEXT_ON_OFF( "Text Ein/Aus" ) ;
 
         private final String title;
         private final int id;
@@ -102,16 +117,33 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
         switch ( me ) {
             case CALIB_AXIS:
             case CALIB_ACCELERATION:
+            case CALIB_AXIS_AND_ANGLE:
                 menuEntryStartOnRest = me ;
+                createDialog().show(); ;
+                break ;
+            case TEXT_ON_OFF:
+                toggleTextOnOff() ;
         }
-        showDialog ().show(); ;
         return false ;
     }
 
-    private AlertDialog showDialog() {
+    private void toggleTextOnOff() {
+
+        textOn = !textOn ;
+        propertyAccess.setProperty( "textOn", ""+textOn );
+    }
+
+    private AlertDialog createDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
         StringBuffer txt = new StringBuffer();
         switch ( menuEntryStartOnRest ) {
+            case CALIB_AXIS_AND_ANGLE:
+                txt.append( "lege das Gerät aufs Gesicht\n"+
+                        "und warte bis ein Ton erklingt\n"+
+                        ", dann schaukle um eine horizontale Längsachse\n"+
+                        "bis zum nächsten Ton"
+                );
+                break;
             case CALIB_ACCELERATION:
                 txt.append( "lege das Gerät aufs Gesicht\n"+
                         "und warte bis ein Ton erklingt\n"+
@@ -133,6 +165,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
                         switch ( menuEntryStartOnRest ) {
                             case CALIB_AXIS:
                             case CALIB_ACCELERATION:
+                            case CALIB_AXIS_AND_ANGLE:
                                 waitForRest = true ;
                         }
 
@@ -214,6 +247,8 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
 
     private void init() {
 
+        propertyAccess = new PropertyAccess( getContext() ) ;
+        loadData () ;
         int sw = 10 ;
         red = new Paint();
         red.setARGB( 255, 255, 0, 0 );
@@ -233,6 +268,16 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
         whiteStroke.setTextSize( 50 );
         whiteStroke.setTypeface( Typeface.MONOSPACE ) ;
         whiteStroke.setTextScaleX( 0.7f );
+        wheelStroke = new Paint();
+        wheelStroke.setARGB( 255, 255, 255, 100 );
+        wheelStroke.setStrokeWidth( sw*0.2f );
+        wheelStroke.setStyle( Paint.Style.STROKE );
+        wheelText = new Paint() ;
+        wheelText.setARGB ( 255, 255, 255, 255 ) ;
+        wheelText.setTypeface( Typeface.MONOSPACE ) ;
+        //wheelText.setTextScaleX( 0.7f );
+        wheelText.setTextSize( 80 );
+        //whiteStroke.setStyle(Paint.Style.STROKE);
 
         //whiteStroke.setXfermode( new PorterDuffXfermode( PorterDuff.Mode.)) ;
         rgb = new Paint[3];
@@ -257,6 +302,32 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
 
     }
 
+    private void loadData() {
+        String p = propertyAccess.getProperty( "tiltAxis.X" ) ;
+        if ( p == null )
+            return ;
+        tiltAxis = new double[3] ;
+        tiltAxis[0] = Double.parseDouble( p ) ;
+        p = propertyAccess.getProperty( "tiltAxis.Y" ) ;
+        tiltAxis[1] = Double.parseDouble( p ) ;
+        p = propertyAccess.getProperty( "tiltAxis.Z" ) ;
+        tiltAxis[2] = Double.parseDouble( p ) ;
+        p = propertyAccess.getProperty( "tiltAngle" ) ;
+        tiltAxisToGravityAngle = Double.parseDouble( p ) ;
+        p = propertyAccess.getProperty( "tiltAngleError" ) ;
+        tiltAxisToGravityAngleError = Double.parseDouble( p ) ;
+        textOn = "true".equals( propertyAccess.getProperty( "textOn") ) ;
+    }
+    private void storeData() {
+        Properties p = new Properties( ) ;
+        p.setProperty( "tiltAxis.X", ""+tiltAxis[0] ) ;
+        p.setProperty( "tiltAxis.Y", ""+tiltAxis[1] ) ;
+        p.setProperty( "tiltAxis.Z", ""+tiltAxis[2] ) ;
+        p.setProperty( "tiltAngle", ""+tiltAxisToGravityAngle ) ;
+        p.setProperty( "tiltAngleError", ""+tiltAxisToGravityAngleError ) ;
+        propertyAccess.setProperties( p );
+    }
+
     @Override
     protected void onCreateContextMenu(ContextMenu menu) {
         if ( !scaling ) {
@@ -264,6 +335,11 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
             MenuItem mi = menu.add(Menu.NONE, me.getId(), Menu.NONE, me.getTitle() );
             me = MenuEntry.CALIB_ACCELERATION ;
             mi = menu.add(Menu.NONE, me.getId(), Menu.NONE, me.getTitle() );
+            me = MenuEntry.CALIB_AXIS_AND_ANGLE ;
+            mi = menu.add(Menu.NONE, me.getId(), Menu.NONE, me.getTitle() );
+            me = MenuEntry.TEXT_ON_OFF ;
+            mi = menu.add(Menu.NONE, me.getId(), Menu.NONE, me.getTitle() );
+
             //menu.add("zwei");
             /*SubMenu sub = menu.addSubMenu ( "sub" ) ;
             //menu.add ( sub ) ;
@@ -327,15 +403,16 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
         }
         if ( calibAxis != null ) {
             txt.add ( "Lotrichtung" ) ;
-            txt.add ( String.format( Locale.ENGLISH, "\tx %10.3f", calibAxis[0] ) ) ;
-            txt.add ( String.format( Locale.ENGLISH, "\ty %10.3f", calibAxis[1] ) ) ;
-            txt.add ( String.format( Locale.ENGLISH, "\tz %10.3f", calibAxis[2] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tx %10.4f", calibAxis[0] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\ty %10.4f", calibAxis[1] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tz %10.4f", calibAxis[2] ) ) ;
         }
         if ( rotationAxis != null ) {
             txt.add ( "Rotations-Achse" ) ;
-            txt.add ( String.format( Locale.ENGLISH, "\tx %10.3f", rotationAxis[0] ) ) ;
-            txt.add ( String.format( Locale.ENGLISH, "\ty %10.3f", rotationAxis[1] ) ) ;
-            txt.add ( String.format( Locale.ENGLISH, "\tz %10.3f", rotationAxis[2] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tx %10.4f", rotationAxis[0] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\ty %10.4f", rotationAxis[1] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tz %10.4f", rotationAxis[2] ) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tfehler %10.4f\u00B0", rotationAxisError*180.0/Math.PI) ) ;
         }
         if ( calibAxis != null && rotationAxis != null ) {
             double cos = VectorOps.dot(calibAxis, rotationAxis);
@@ -343,31 +420,145 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
             double phi = Math.atan2(sin, cos);
             txt.add ( String.format( Locale.ENGLISH, "Winkel zwischen Achse und Lot %10.2f", (phi*180/Math.PI) ) ) ;
         }
+        if ( tiltAxis != null ) {
+            txt.add( "Wasserwaage Kalibrierung" ) ;
+            txt.add( String.format( Locale.ENGLISH, "\tWinkel        %10.5f\u00B0", tiltAxisToGravityAngle*180.0/Math.PI)) ;
+            txt.add( String.format(Locale.ENGLISH,  "\tWinkel Fehler %10.7f\u00B0", tiltAxisToGravityAngleError*180.0/Math.PI)) ;
+            txt.add( String.format( Locale.ENGLISH, "\tAchse[x]          %10.3f", tiltAxis[0] ) ) ;
+            txt.add( String.format( Locale.ENGLISH, "\tAchse[y]          %10.3f", tiltAxis[1] ) ) ;
+            txt.add( String.format( Locale.ENGLISH, "\tAchse[z]          %10.3f", tiltAxis[2] ) ) ;
+            if ( acceleration != null ){
+                double[] acc = new double[3];
+                acc[0] = acceleration[0] ;
+                acc[1] = acceleration[1] ;
+                acc[2] = acceleration[2] ;
+                double phi = VectorOps.len( VectorOps.angleBetweenVectors(acc, tiltAxis) ) ;
+                txt.add( String.format(Locale.ENGLISH,  "\tWinkel diff %10.5f\u00B0", (phi-tiltAxisToGravityAngle)*180.0/Math.PI)) ;
+            }
+        }
         td.setText( txt ) ;
-        txt.add( String.format( Locale.ENGLISH, "scale %10.3f %10.3f", scaleFactor, scale ) ) ;
-        td.drawOnto( canvas, 100, 100 );
         int w = getWidth();
         int h = getHeight();
+        txt.add( String.format( Locale.ENGLISH, "scale %10.3f %10.3f", scaleFactor, scale ) ) ;
+        canvas.save() ;
+        canvas.rotate( 90, w/2, w/2 );
+        if ( textOn )
+            td.drawOnto( canvas, 100, 100 );
+        canvas.restore();
         float r = w > h ? h : w;
         float cx = w / 2;
         float cy = h / 2;
-        float scale = r / 3;
-        scale *= this.scale ;
-        double degreePerUnit = 5 ;
-        double f = 1.0 / (degreePerUnit*Math.PI / 180.0);
-        double n[] = getNormal ( acceleration ) ;
-        double[] acc;
-        acc = new double[3] ;
-        for ( int i = 0 ; i < 3 ; i++ )
-            acc[i] = acceleration[i] ;
-        matrix = mfvp.getMatrixFromVectorPair( calibAxis, acc ) ;
-        float dx = (float) ( matrix[2][0] * scale * f);
-        float dy = (float) ( matrix[2][1] * scale * f);
+        if ( tiltAxis != null && acceleration != null ) {
+            double[] acc = new double[3];
+            acc[0] = acceleration[0] ;
+            acc[1] = acceleration[1] ;
+            acc[2] = acceleration[2] ;
+            VectorOps.normalize( acc );
+            double[] v = VectorOps.cross(tiltAxis, acc);
+            double[] v2 = VectorOps.cross(acc, v);
+            if ( false ) {
+                paintAxis ( canvas, cx, cy, w, h, v2, whiteStroke ) ;
+                paintAxis ( canvas, cx, cy, w, h, tiltAxis, whiteFill ) ;
+            }
+            double[] phiV = VectorOps.angleBetweenVectors(tiltAxis, acc);
+            double phi = (VectorOps.len(phiV)-tiltAxisToGravityAngle/* - Math.PI / 2*/);
+            drawWheel ( canvas, cx, cy, phi ) ;
+        } else {
+            float scale = r / 3;
+            scale *= this.scale ;
+            double degreePerUnit = 5 ;
+            double f = 1.0 / (degreePerUnit*Math.PI / 180.0);
+            double n[] = getNormal ( acceleration ) ;
+            double[] acc;
+            acc = new double[3] ;
+            for ( int i = 0 ; i < 3 ; i++ )
+                acc[i] = acceleration[i] ;
+            matrix = mfvp.getMatrixFromVectorPair( calibAxis, acc ) ;
+            float dx = (float) ( matrix[2][0] * scale * f);
+            float dy = (float) ( matrix[2][1] * scale * f);
 
 
-        canvas.drawCircle( cx+dx, cy-dy, (float) (scale*0.2), whiteFill );
-        canvas.drawLine( 0, cy, w, cy, whiteFill );
-        canvas.drawLine( cx, 0, cx, h, whiteFill );
+            canvas.drawCircle( cx+dx, cy-dy, (float) (scale*0.2), whiteFill );
+            canvas.drawLine( 0, cy, w, cy, whiteFill );
+            canvas.drawLine( cx, 0, cx, h, whiteFill );
+        }
+    }
+    private void drawWheel(Canvas canvas, float cx, float cy, double phi ) {
+        Paint ws = new Paint(wheelStroke);
+        ws.setARGB( 255, 255, 255, 255 );
+        canvas.drawLine( 0, cy, canvas.getWidth(), cy, ws );
+        int r = canvas.getHeight()*5;
+        cx -= r ;
+        //canvas.drawCircle( cx, cy, r, wheelStroke );
+        canvas.save();
+        /*
+        canvas.rotate(  (float) (phi*180.0/Math.PI), cx, cy );
+        int n = 18 ;
+        double dPhi = Math.PI / n;
+        for ( int i = 0 ; i <= n ; i++ ) {
+            double alpha = dPhi * i - Math.PI / 2;
+            canvas.drawLine( cx, cy, (float) (cx+r*Math.cos( alpha )), (float) (cy+r*Math.sin( alpha )), wheelStroke );
+        }
+        canvas.drawText( " 0.00\u00B0" , cx+r, cy, wheelText );
+         */
+        double phiDeg0 = phi * 180.0 / Math.PI - 90;
+        double phiDegDelta = 10;
+        int n = (int) Math.round(180/phiDegDelta);
+        canvas.rotate((float) phiDeg0, cx, cy );
+        int deg = -90 ;
+        double deltaStroke = 0.02;
+        for ( int i = 0 ; i <= n ; i++ ) {
+            canvas.drawLine( cx, cy, (float) (cx+r*(1.0+deltaStroke)), cy, wheelStroke );
+            canvas.save() ;
+            canvas.rotate( 90, (float) (cx+r*(1.0+deltaStroke))+10, cy );
+            canvas.drawText( String.format( "%-1d\u00B0", deg  ), (float) (cx+r*(1.0+deltaStroke))+10, cy, wheelText );
+            canvas.restore();
+            canvas.rotate((float) phiDegDelta, cx, cy );
+            deg += phiDegDelta ;
+        }
+        canvas.restore();
+        canvas.save();
+        canvas.rotate((float) phiDeg0, cx, cy );
+        deg = -90 ;
+        phiDegDelta = 1 ;
+        n = (int) Math.round( 180/phiDegDelta );
+        for ( int i = 0 ; i <= n ; i++ ) {
+            canvas.drawLine((float) (cx+r*(1.0-deltaStroke)), cy, cx+r, cy, wheelStroke );
+            if ( deg% 10 != 0 ) {
+                canvas.save() ;
+                canvas.rotate( 90, (float) (cx+r+10), cy );
+                canvas.drawText( String.format( "%-1d\u00B0", deg  ), (float) (cx+r+10), cy, wheelText );
+                canvas.restore();
+            }
+            canvas.rotate((float) phiDegDelta, cx, cy );
+            deg += phiDegDelta ;
+        }
+        canvas.restore();
+        canvas.save();
+        canvas.rotate((float) phiDeg0, cx, cy );
+        deg = -90 ;
+        phiDegDelta = 0.1 ;
+        n = (int) Math.abs( 180/phiDegDelta );
+        deltaStroke /= 2 ;
+        for ( int i = 0 ; i <= n ; i++ ) {
+            double ds = i % 5 == 0 ? deltaStroke*1.5: deltaStroke;
+            canvas.drawLine((float) (cx+r*(1.0-ds)), cy, cx+r, cy, wheelStroke );
+            canvas.rotate((float) phiDegDelta, cx, cy );
+        }
+        canvas.restore();
+
+    }
+
+    private void paintAxis(Canvas canvas, double cx, double cy, double w, double h, double[] axis, Paint paint) {
+        double ax = axis[0];
+        double ay = axis[1];
+        double deltaY = cy - h;
+        double deltaX = ax * deltaY / ay;
+        float x1 = (float) (deltaX + cx);
+        deltaY = cy;
+        deltaX = ax * deltaY / ay;
+        float x2 = (float) (deltaX + cx);
+        canvas.drawLine( x2, 0f, x1, (float) h, paint );
     }
 
     private double[] xform(double[][] matrix, double[] v) {
@@ -483,7 +674,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
         scaling = false ;
     }
 
-    public void setAcceleration(float[] values) {
+    public void setAcceleration(float[] values, long nanos ) {
         if ( !doSample ) {
             this.acceleration = accFilter.filter(values);
         } else {
@@ -492,13 +683,15 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
                 endGravityCalibration() ;
             }
         }
+        if ( axisAndAngle != null )
+            axisAndAngle.setAcceleration( values, nanos );
         invalidate();
     }
     public void setAngularVelocity(float[] values, long timestampnano ) {
         omega = omegaFilter.filter( values ) ;
         omegaAbsDeg = Math.sqrt(omega[0] * omega[0] + omega[1] * omega[1] + omega[2] * omega[2])*180.0/Math.PI ;
         omegaAbsDeg2 = omegaAbsFilter.filter(omegaAbsDeg);
-        if ( waitForRest && omegaAbsDeg2 < 0.1 ) {
+        if ( waitForRest && omegaAbsDeg2 < 0.3 ) {
             switch ( this.menuEntryStartOnRest ) {
                 case CALIB_AXIS:
                     startAxisCalibration();
@@ -506,18 +699,40 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
                 case CALIB_ACCELERATION:
                     startGravityCalibration();
                     break ;
+                case CALIB_AXIS_AND_ANGLE:
+                    startAxisAndAngle() ;
+                    break ;
             }
             waitForRest = false ;
         }
         if ( gyro == null ) {
             gyro = new GyrosopicIntegrator(new Quaternion(1,0,0,0), timestampnano ) ;
         }
+        if ( axisAndAngle != null ) {
+            axisAndAngle.setAngularVelocity( values, timestampnano );
+            if ( (System.currentTimeMillis()-axisAndAngleSTartTimeMS)>10*1000 ) {
+                axisAndAngle.evaluate();
+                tiltAxis = axisAndAngle.axis ;
+                tiltAxisToGravityAngle = axisAndAngle.angle ;
+                tiltAxisToGravityAngleError = axisAndAngle.angleError ;
+                axisAndAngle = null ;
+                playSound( false );
+                storeData () ;
+            }
+        }
         gyro.nextSpin(values, timestampnano);
+    }
+
+    private void startAxisAndAngle() {
+        axisAndAngle = new TiltCalibration();
+        axisAndAngleSTartTimeMS = System.currentTimeMillis() ;
+        playSound( true );
     }
 
     @Override
     public void axisReady(GyrosopicIntegrator.AxisMeasurementResult result) {
         playSound( false );
         rotationAxis = result.getAxis() ;
+        rotationAxisError = result.getError() ;
     }
 }

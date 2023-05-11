@@ -28,7 +28,7 @@ public class SpiritLevelViewHolder extends AbstractViewHolder {
         int type = event.sensor.getType();
         switch ( type ) {
             case Sensor.TYPE_ACCELEROMETER:
-                spiritlevelDisplay.setAcceleration( event.values ) ;
+                spiritlevelDisplay.setAcceleration( event.values, event.timestamp ) ;
                 break ;
             case Sensor.TYPE_GYROSCOPE:
                 spiritlevelDisplay.setAngularVelocity ( event.values, event.timestamp ) ;

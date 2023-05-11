@@ -69,12 +69,13 @@ public class VectorOps {
         double bLen = len(b);
         double[] acb = cross(a, b);
         double cos = dot(a, b) / (aLen * bLen);
-        double sin = len(acb)  / (aLen * bLen);
+        double acbLen = len(acb);
+        double sin = acbLen  / (aLen * bLen);
         double phi = Math.atan2(sin, cos);
         if ( phi == 0 ) {
             clear ( acb ) ;
         } else {
-            double f = phi / sin;
+            double f = phi / acbLen;
             acb[0] *= f ;
             acb[1] *= f ;
             acb[2] *= f ;
@@ -88,5 +89,9 @@ public class VectorOps {
             rv[i] = a[i]+b[i] ;
         }
         return rv ;
+    }
+
+    public static double dot(double[] a, float[] b) {
+        return a[0]*b[0]+a[1]*b[1]+a[2]*b[2] ;
     }
 }
