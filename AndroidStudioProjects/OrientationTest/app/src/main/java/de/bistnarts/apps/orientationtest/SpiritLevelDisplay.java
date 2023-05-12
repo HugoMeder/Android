@@ -273,10 +273,10 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
         wheelStroke.setStrokeWidth( sw*0.2f );
         wheelStroke.setStyle( Paint.Style.STROKE );
         wheelText = new Paint() ;
-        wheelText.setARGB ( 255, 255, 255, 255 ) ;
+        wheelText.setARGB ( 255, 255, 255, 100 ) ;
         wheelText.setTypeface( Typeface.MONOSPACE ) ;
         //wheelText.setTextScaleX( 0.7f );
-        wheelText.setTextSize( 80 );
+        wheelText.setTextSize( 60 );
         //whiteStroke.setStyle(Paint.Style.STROKE);
 
         //whiteStroke.setXfermode( new PorterDuffXfermode( PorterDuff.Mode.)) ;
@@ -292,7 +292,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
         td = new TextDrawer ( whiteStroke ) ;
 
         scaleGesture = new ScaleGestureDetector( getContext(), this ) ;
-        accFilter = new LowPassFilter( 0.3 ) ;
+        accFilter = new LowPassFilter( 1 ) ;
         omegaFilter = new LowPassFilter( 1 ) ;
         omegaAbsFilter = new LowPassFilter( 1 ) ;
 
@@ -385,6 +385,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
     @Override
     protected void onDraw(Canvas canvas) {
 
+        this.setBackgroundColor( 0xff002040 /*100, 100, 200, 255*/ );
         if ( !doShow )
             return ;
         super.onDraw( canvas );
@@ -464,6 +465,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
             double phi = (VectorOps.len(phiV)-tiltAxisToGravityAngle/* - Math.PI / 2*/);
             drawWheel ( canvas, cx, cy, phi ) ;
         } else {
+            /*
             float scale = r / 3;
             scale *= this.scale ;
             double degreePerUnit = 5 ;
@@ -481,6 +483,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
             canvas.drawCircle( cx+dx, cy-dy, (float) (scale*0.2), whiteFill );
             canvas.drawLine( 0, cy, w, cy, whiteFill );
             canvas.drawLine( cx, 0, cx, h, whiteFill );
+             */
         }
     }
     private void drawWheel(Canvas canvas, float cx, float cy, double phi ) {

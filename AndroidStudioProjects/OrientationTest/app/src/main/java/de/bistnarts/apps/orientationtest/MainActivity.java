@@ -60,8 +60,8 @@ public class MainActivity extends AppCompatActivity {
         final String tabName;
     }
 
-    InitAttrs[] initAttrs = { InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
-    //InitAttrs[] initAttrs = { InitAttrs.SPIRIT_LEVEL } ;
+    //InitAttrs[] initAttrs = { InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
+    InitAttrs[] initAttrs = { InitAttrs.SPIRIT_LEVEL } ;
 
     int numViews = initAttrs.length ;
 
