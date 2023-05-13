@@ -413,7 +413,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
             txt.add ( String.format( Locale.ENGLISH, "\tx %10.4f", rotationAxis[0] ) ) ;
             txt.add ( String.format( Locale.ENGLISH, "\ty %10.4f", rotationAxis[1] ) ) ;
             txt.add ( String.format( Locale.ENGLISH, "\tz %10.4f", rotationAxis[2] ) ) ;
-            txt.add ( String.format( Locale.ENGLISH, "\tfehler %10.4f\u00B0", rotationAxisError*180.0/Math.PI) ) ;
+            txt.add ( String.format( Locale.ENGLISH, "\tFehler %10.8f\u00B0", rotationAxisError*180.0/Math.PI) ) ;
         }
         if ( calibAxis != null && rotationAxis != null ) {
             double cos = VectorOps.dot(calibAxis, rotationAxis);
