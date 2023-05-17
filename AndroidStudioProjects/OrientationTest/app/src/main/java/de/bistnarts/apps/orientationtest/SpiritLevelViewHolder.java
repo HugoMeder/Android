@@ -8,14 +8,16 @@ import android.view.View;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import de.bistnarts.apps.orientationtest.tools.Globals;
+
 public class SpiritLevelViewHolder extends AbstractViewHolder {
     private final SpiritLevelDisplay spiritlevelDisplay;
 
-    public SpiritLevelViewHolder(View itemView, Activity activity ) {
-        super(itemView, activity );
+    public SpiritLevelViewHolder(View itemView, Globals globals ) {
+        super(itemView, globals );
         ConstraintLayout view = (ConstraintLayout) itemView;
         spiritlevelDisplay = (SpiritLevelDisplay) view.getViewById(R.id.spiritlevelView);
-        spiritlevelDisplay.setActivity ( this.activity );
+        spiritlevelDisplay.setGlobals ( globals );
     }
 
     @Override

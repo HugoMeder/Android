@@ -1,13 +1,21 @@
 package de.bistnarts.apps.orientationtest.tools;
 
+import android.content.Context;
+
 import androidx.annotation.Nullable;
 import androidx.lifecycle.Lifecycle;
 
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.TreeSet;
 import java.util.Vector;
 
 public class TiltCalibration {
 
+    private final Context context;
     private Vector<Event> acc = new Vector<Event>() ;
     private Vector<Event> omega = new Vector<Event>() ;
     public double[] axis;
@@ -44,6 +52,10 @@ public class TiltCalibration {
                 return false ;
         }
     }
+
+    public TiltCalibration(Context contxt) {
+        this.context = contxt ;
+    }
     public void setAcceleration ( float[] a, long timestampnano ) {
         acc.add( new Event( a, timestampnano) ) ;
     }
@@ -52,7 +64,33 @@ public class TiltCalibration {
         this.omega.add( new Event( omega, timestampnano) ) ;
     }
 
+    private void storeData() {
+        File dir = context.getExternalFilesDir(null);
+        File file = new File(dir, "tiltData.bin");
+        try {
+            FileOutputStream out = new FileOutputStream(file);
+            DataOutputStream dout = new DataOutputStream(out);
+            dout.writeInt ( 1 ) ;
+            writeEvents ( dout, this.acc ) ;
+            writeEvents ( dout, this.omega ) ;
+            dout.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void writeEvents(DataOutputStream dout, Vector<Event> events ) throws IOException {
+        dout.writeInt( events.size() );
+        for ( Event e : events ) {
+            dout.writeLong( e.time );
+            dout.writeInt( e.values.length );
+            for ( float f : e.values ) {
+                dout.writeFloat( f );
+            }
+        }
+    }
     public void evaluate () {
+        storeData () ;
         evaluateOmega () ;
         evaluateAcc () ;
     }

@@ -1,12 +1,14 @@
 package de.bistnarts.apps.orientationtest;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.hardware.GeomagneticField;
 import android.location.Location;
 import android.location.LocationListener;
+import android.net.Uri;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -14,11 +16,14 @@ import androidx.annotation.NonNull;
 
 import java.util.Date;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.Vector;
 
 import de.bistnarts.apps.orientationtest.tools.GNSSOneShoot;
+import de.bistnarts.apps.orientationtest.tools.Globals;
 import de.bistnarts.apps.orientationtest.tools.GyrosopicIntegrator;
 import de.bistnarts.apps.orientationtest.tools.LowPassFilter;
+import de.bistnarts.apps.orientationtest.tools.PropertyAccess;
 import de.bistnarts.apps.orientationtest.tools.Quaternion;
 import de.bistnarts.apps.orientationtest.tools.TextDrawer;
 
@@ -47,8 +52,12 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
     private int clickCount;
     private GNSSOneShoot gnss;
     private GeomagneticField geomRef;
-    private Location location;
     private boolean zeroAngularMomentum;
+    private Globals globals;
+    private double locLon;
+    private double locLat;
+    private double locAlt;
+    private long locTime;
 
 
     public AxisDisplay(Context context) {
@@ -59,6 +68,16 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
     public AxisDisplay(Context context, AttributeSet attrs ) {
         super(context, attrs );
         init () ;
+    }
+
+    void setGlobals ( Globals globals ) {
+        this.globals = globals ;
+        loadGeomRef();
+    }
+
+    void openUrl ( String download_link) {
+        Intent myIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(download_link));
+        globals.getActivity().startActivity(myIntent);
     }
 
     private void init() {
@@ -154,7 +173,7 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
         Vector<String> txt = new Vector<String>();
         if ( geomRef != null ) {
             txt.add( String.format( Locale.ENGLISH,  "Referenzwerte für Position" ) );
-            txt.add ( String.format( Locale.ENGLISH,  "\tlat %7.3f\u00B0 lon %7.3f\u00B0", location.getLatitude(), location.getLongitude())) ;
+            txt.add ( String.format( Locale.ENGLISH,  "\tlat %7.3f\u00B0 lon %7.3f\u00B0", locLat, locLon ) ) ;
             txt.add( String.format( Locale.ENGLISH,  "\tdec %7.1f\u00B0", geomRef.getDeclination() ) ) ;
             txt.add( String.format( Locale.ENGLISH,  "\tinc %7.1f\u00B0", geomRef.getInclination() ) ) ;
             txt.add(String.format( Locale.ENGLISH,  "\tB   %7.1f \u03BCT", geomRef.getFieldStrength()/1000.0 ) ) ;
@@ -290,7 +309,39 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
 
     @Override
     public void onLocationChanged(@NonNull Location location) {
-        this.location = location ;
-        this.geomRef = new GeomagneticField((float) location.getLatitude(), (float) location.getLongitude(), (float) location.getAltitude(), new Date().getTime() ) ;
+        Date date = new Date();
+        locLon = location.getLongitude() ;
+        locLat = location.getLatitude() ;
+        locAlt = location.getAltitude() ;
+        locTime = location.getTime() ;
+        createGeomRef () ;
+        storeGeomRef ( location.getLongitude(), location.getLatitude(), location.getAltitude(), date.getTime() ) ;
+    }
+
+    private void createGeomRef() {
+        this.geomRef = new GeomagneticField((float) locLat, (float) locLon, (float) locAlt, locTime ) ;
+    }
+
+    private void storeGeomRef(double longitude, double latitude, double altitude, long time) {
+        PropertyAccess pa = globals.getPropertyAccess();
+        Properties props = new Properties();
+        props.setProperty( "loc.lon", ""+longitude ) ;
+        props.setProperty( "loc.lat", ""+latitude ) ;
+        props.setProperty( "loc.alt", ""+altitude ) ;
+        props.setProperty( "loc.timeMs", ""+time ) ;
+        pa.setProperties( props );
+    }
+
+    private void loadGeomRef () {
+        PropertyAccess pa = globals.getPropertyAccess();
+        String lonStr = pa.getProperty("loc.lon");
+        if ( lonStr == null ) {
+            return ;
+        }
+        locLon = Double.parseDouble(lonStr);
+        locLat = Double.parseDouble(pa.getProperty("loc.lat"));
+        locAlt = Double.parseDouble(pa.getProperty("loc.alt"));
+        locTime = Long.parseLong(pa.getProperty("loc.timeMs"));
+        createGeomRef();
     }
 }

@@ -11,6 +11,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import java.util.Map;
 import java.util.Vector;
 
+import de.bistnarts.apps.orientationtest.tools.Globals;
 import de.bistnarts.apps.orientationtest.tools.TimeSeqAnalysis;
 import de.bistnarts.apps.orientationtest.tools.TimeSeqListener;
 
@@ -27,8 +28,8 @@ public class TextViewHolder extends AbstractViewHolder implements TimeSeqListene
     private Vector<SensorEvent> eventBlock;
     private long nextTimestamp;
 
-    public TextViewHolder(View itemView, Activity activity) {
-        super( itemView, activity );
+    public TextViewHolder(View itemView, Globals globals ) {
+        super( itemView, globals );
         ConstraintLayout view = (ConstraintLayout) itemView;
         textView = (TextView) view.getViewById(R.id.textView);
         textView.setText("pos " + getAdapterPosition());

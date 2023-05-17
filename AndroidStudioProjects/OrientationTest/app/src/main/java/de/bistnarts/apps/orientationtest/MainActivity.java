@@ -32,6 +32,7 @@ import java.util.Vector;
 
 import de.bistnarts.apps.orientationtest.tools.ContinousQuaternionFilter;
 import de.bistnarts.apps.orientationtest.tools.GNSSOneShoot;
+import de.bistnarts.apps.orientationtest.tools.Globals;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -40,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private ViewPager2 viewPager;
     private MyAdapter adapter;
     private ContinousQuaternionFilter qf = new ContinousQuaternionFilter () ;
+    private Globals globals;
 
 
     enum InitAttrs {
@@ -60,8 +62,8 @@ public class MainActivity extends AppCompatActivity {
         final String tabName;
     }
 
-    //InitAttrs[] initAttrs = { InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
-    InitAttrs[] initAttrs = { InitAttrs.SPIRIT_LEVEL } ;
+    InitAttrs[] initAttrs = { InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
+    //InitAttrs[] initAttrs = { InitAttrs.SPIRIT_LEVEL , InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS} ;
 
     int numViews = initAttrs.length ;
 
@@ -98,9 +100,9 @@ public class MainActivity extends AppCompatActivity {
                 System.out.println( "onCreateViewHolder "+cnt+" "+initAttrs[cnt].tabName );
                 View w =infl.inflate( initAttrs[cnt].layout, parent, false ) ;
                 try {
-                    Constructor constr = initAttrs[cnt].viewHolderClass.getConstructor(View.class, Activity.class );
+                    Constructor constr = initAttrs[cnt].viewHolderClass.getConstructor(View.class, Globals.class );
                     RecyclerView.ViewHolder rv = null;
-                    rv = (RecyclerView.ViewHolder) constr.newInstance( w, MainActivity.this );
+                    rv = (RecyclerView.ViewHolder) constr.newInstance( w, globals );
                     views.add((AbstractViewHolder) rv) ;
                     return rv;
                 } catch (IllegalAccessException e) {
@@ -174,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        globals = new Globals ( this ) ;
         checkPermissions_ () ;
         adapter = new MyAdapter();
         int view = R.layout.pager;

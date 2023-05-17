@@ -17,15 +17,6 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
 public class GNSSOneShoot {
-
-    class Listener implements LocationListener {
-
-        @Override
-        public void onLocationChanged(@NonNull Location location) {
-            System.out.println ( "I got a location!" ) ;
-        }
-    }
-
     public GNSSOneShoot(Context context, LocationListener listener ) {
         LocationManager locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
         if (locationManager == null) {

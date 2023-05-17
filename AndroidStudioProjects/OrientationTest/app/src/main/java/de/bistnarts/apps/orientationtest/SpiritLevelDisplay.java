@@ -29,11 +29,15 @@ import android.view.View;
 import androidx.annotation.NonNull;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Vector;
 
+import de.bistnarts.apps.orientationtest.tools.Globals;
 import de.bistnarts.apps.orientationtest.tools.GyrosopicAxisListener;
 import de.bistnarts.apps.orientationtest.tools.GyrosopicIntegrator;
 import de.bistnarts.apps.orientationtest.tools.LowPassFilter;
@@ -61,7 +65,6 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
     private double[] calibAxis = zAxis ;
     private MatrixFromVectorPair mfvp;
     private boolean doShow = true ;
-    private Activity activity;
     private boolean scaling;
     static Vector<MenuEntry> entries = new Vector<MenuEntry>() ;
     private MenuEntry menuEntryStartOnRest;
@@ -78,6 +81,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
     private Paint wheelStroke;
     private Paint wheelText;
     private boolean textOn;
+    private Globals globals;
 
     enum MenuEntry {
         CALIB_AXIS ("Ache kalibrieren" ),
@@ -106,10 +110,13 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
             return entries.get( id-1 ) ;
         }
     } ;
-    public void setActivity(Activity activity) {
-        this.activity = activity ;
-        activity.registerForContextMenu ( this ) ;
+    public void setGlobals(Globals globals) {
+        this.globals = globals ;
+        globals.getActivity().registerForContextMenu ( this ) ;
+        propertyAccess = globals.getPropertyAccess() ;
+        loadData () ;
     }
+
 
     public boolean onContextItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -134,7 +141,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
     }
 
     private AlertDialog createDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+        AlertDialog.Builder builder = new AlertDialog.Builder(globals.getActivity());
         StringBuffer txt = new StringBuffer();
         switch ( menuEntryStartOnRest ) {
             case CALIB_AXIS_AND_ANGLE:
@@ -247,8 +254,6 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
 
     private void init() {
 
-        propertyAccess = new PropertyAccess( getContext() ) ;
-        loadData () ;
         int sw = 10 ;
         red = new Paint();
         red.setARGB( 255, 255, 0, 0 );
@@ -462,7 +467,8 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
                 paintAxis ( canvas, cx, cy, w, h, tiltAxis, whiteFill ) ;
             }
             double[] phiV = VectorOps.angleBetweenVectors(tiltAxis, acc);
-            double phi = (VectorOps.len(phiV)-tiltAxisToGravityAngle/* - Math.PI / 2*/);
+            //double phi = (VectorOps.len(phiV)-tiltAxisToGravityAngle/* - Math.PI / 2*/);
+            double phi = (VectorOps.len(phiV)- Math.PI / 2);
             drawWheel ( canvas, cx, cy, phi ) ;
         } else {
             /*
@@ -638,18 +644,49 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
     }
 
     private void playSound( boolean start ) {
-        AsyncPlayer p = new AsyncPlayer( ("ping") ) ;
+
+        AsyncPlayer aPlayer = globals.getAsyncPlayer () ;
+
         AudioAttributes attr = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build();
-        File dir = getContext().getExternalFilesDir(  Environment.DIRECTORY_RINGTONES ) ;
-        File file = start ? new File(dir, "very_short_notif.mp3") : new File(dir, "verry_short_sms.mp3") ;
-
-        Uri uri = Uri.fromFile(file);
-        p.play( getContext(), uri, false, attr );
-
+        if ( true ) {
+            File dir = getContext().getExternalFilesDir(  Environment.DIRECTORY_RINGTONES ) ;
+            File file = start ? new File(dir, "very_short_notif.mp3") : new File(dir, "verry_short_sms.mp3") ;
+            if ( !file.exists() ) {
+                downloadAudioFile ( R.raw.verry_short_sms, "verry_short_sms.mp3" ) ;
+                downloadAudioFile ( R.raw.very_short_notif, "very_short_notif.mp3" ) ;
+            }
+            Uri uri = Uri.fromFile(file);
+            aPlayer.play( getContext(), uri, false, AudioManager.STREAM_MUSIC );
+        } else{
+            int id = start ? R.raw.very_short_notif : R.raw.verry_short_sms;
+            Uri uri = Uri.parse("android.resource://com.my.android.package/" + id);
+            aPlayer.play( getContext(), uri, false, attr );
+        }
     }
+
+    private void downloadAudioFile(int id, String fn ) {
+        InputStream in = getResources().openRawResource( id );
+        File dir = getContext().getExternalFilesDir(  Environment.DIRECTORY_RINGTONES ) ;
+        File file = new File(dir, fn);
+        try {
+            FileOutputStream out = new FileOutputStream(file);
+            int blen = 16*1024 ;
+            byte[] buf = new byte[blen] ;
+            int n = in.read(buf);
+            while ( n > 0 ) {
+                out.write( buf, 0, n );
+                n = in.read(buf);
+            }
+            in.close();
+            out.close();
+        } catch ( IOException e ) {
+            throw new RuntimeException( e ) ;
+        }
+    }
+
 
     @Override
     public boolean onScale(@NonNull ScaleGestureDetector detector) {
@@ -727,7 +764,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
     }
 
     private void startAxisAndAngle() {
-        axisAndAngle = new TiltCalibration();
+        axisAndAngle = new TiltCalibration( getContext() );
         axisAndAngleSTartTimeMS = System.currentTimeMillis() ;
         playSound( true );
     }

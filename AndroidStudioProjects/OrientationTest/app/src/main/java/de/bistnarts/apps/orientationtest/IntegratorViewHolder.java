@@ -1,17 +1,21 @@
 package de.bistnarts.apps.orientationtest;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
+import android.net.Uri;
 import android.view.View;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import de.bistnarts.apps.orientationtest.tools.Globals;
+
 public class IntegratorViewHolder extends AbstractViewHolder {
     private final IntegratorDisplay integratorDisplay;
 
-    public IntegratorViewHolder(View itemView, Activity activity ) {
-        super(itemView, activity ) ;
+    public IntegratorViewHolder(View itemView, Globals globals ) {
+        super(itemView, globals ) ;
         ConstraintLayout view = (ConstraintLayout) itemView;
         integratorDisplay = (IntegratorDisplay) view.getViewById(R.id.integratorView);
 

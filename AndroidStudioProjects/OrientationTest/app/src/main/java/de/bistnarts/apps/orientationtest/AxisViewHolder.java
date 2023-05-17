@@ -7,14 +7,16 @@ import android.view.View;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import de.bistnarts.apps.orientationtest.tools.Globals;
+
 public class AxisViewHolder extends AbstractViewHolder {
     private final AxisDisplay axisDisplay;
 
-    public AxisViewHolder(View itemView, Activity activity) {
-        super(itemView, activity);
+    public AxisViewHolder(View itemView, Globals globals) {
+        super(itemView, globals);
         ConstraintLayout view = (ConstraintLayout) itemView;
         axisDisplay = (AxisDisplay) view.getViewById(R.id.axisView);
-
+        axisDisplay.setGlobals( globals );
     }
 
     @Override
