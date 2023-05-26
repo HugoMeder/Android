@@ -47,7 +47,7 @@ public class IntegratorDisplay extends View implements AttachDetach, View.OnLong
     private int numAccelerationEvents;
     private int numAngularEvents;
     private long startTime;
-    private Camera cam;
+    //private Camera cam;
     private boolean LEDon;
     private GyrosopicIntegrator.AxisMeasurementResult axisMeasurement;
 
@@ -285,6 +285,7 @@ public class IntegratorDisplay extends View implements AttachDetach, View.OnLong
     }
 
     private void toggle_LED() {
+        /*
         if (cam == null) {
             cam = openCamera();
         }
@@ -302,7 +303,7 @@ public class IntegratorDisplay extends View implements AttachDetach, View.OnLong
             param.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
             cam.setParameters(param);
             cam.stopPreview();
-        }
+        }*/
     }
 
     private Camera openCamera() {

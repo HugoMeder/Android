@@ -300,6 +300,13 @@ public class AxisDisplay extends View implements AttachDetach, View.OnClickListe
 
     @Override
     public boolean onLongClick(View v) {
+        if ( geomRef != null ) {
+            //String uriStr = "https://www.google.com/maps/@46.9239081,9.6628719,8z";
+            //String
+            String uriStr = String.format(Locale.ENGLISH, "https://www.google.com/maps?q=%f,%f,20z", locLat, locLon);
+            openUrl (uriStr) ;
+            return false;
+        }
         clickCount++ ;
         if ( integrator != null ) {
             integrator.reset( orientation, 0 );

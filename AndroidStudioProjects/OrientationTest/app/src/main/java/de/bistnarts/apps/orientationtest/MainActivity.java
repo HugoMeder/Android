@@ -49,7 +49,8 @@ public class MainActivity extends AppCompatActivity {
         TEXT ( R.layout.text_view, TextViewHolder.class, "Text" ),
         AXIS ( R.layout.axis_view, AxisViewHolder.class, "Mangetfield" ),
         SPIRIT_LEVEL ( R.layout.spiritlevel_view, SpiritLevelViewHolder.class, "Wasserwaage" ),
-        INTEGRATOR ( R.layout.integrator_view, IntegratorViewHolder.class, "Integrator" ) ;
+        INTEGRATOR ( R.layout.integrator_view, IntegratorViewHolder.class, "Integrator" ),
+        TASCHENLAMPE ( R.layout.taschenlampen_view, TaschenlampenViewHolder.class, "Taschenlampe" );
         InitAttrs (int layout, java.lang.Class viewHolderClass, String tabName ) {
             this.layout = layout ;
             this.viewHolderClass = viewHolderClass ;
@@ -62,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
         final String tabName;
     }
 
-    InitAttrs[] initAttrs = { InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
+    InitAttrs[] initAttrs = { InitAttrs.TASCHENLAMPE, InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS, InitAttrs.SPIRIT_LEVEL } ;
     //InitAttrs[] initAttrs = { InitAttrs.SPIRIT_LEVEL , InitAttrs.INTEGRATOR, InitAttrs.TEXT, InitAttrs.AXIS} ;
 
     int numViews = initAttrs.length ;
