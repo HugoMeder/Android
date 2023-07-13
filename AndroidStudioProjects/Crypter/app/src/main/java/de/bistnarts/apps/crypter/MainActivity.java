@@ -1,45 +1,101 @@
 package de.bistnarts.apps.crypter;
 
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
+import static android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG;
+import static android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.hardware.biometrics.BiometricPrompt;
+
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import java.io.ByteArrayInputStream;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
 import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.LineNumberReader;
-import java.util.Vector;
+import java.util.concurrent.Executor;
 
 import de.bitsnarts.chiffer.Decoder;
 
 public class MainActivity extends AppCompatActivity {
 
-    private ClipboardManager clipboardManager;
+    @RequiresApi(api = Build.VERSION_CODES.P)
+    class Callback extends BiometricPrompt.AuthenticationCallback {
 
-    @SuppressWarnings("deprecation")
+        Callback () {
+            super () ;
+        }
+        @Override
+        public void onAuthenticationError(int errorCode, CharSequence errString) {
+            super.onAuthenticationError(errorCode, errString);
+            Toast.makeText(getApplicationContext(),
+                            "Authentication error: " + errString, Toast.LENGTH_SHORT)
+                    .show();
+        }
+
+        @Override
+        public void onAuthenticationSucceeded(
+                BiometricPrompt.AuthenticationResult result) {
+            super.onAuthenticationSucceeded(result);
+            Toast.makeText(getApplicationContext(),
+                    "Authentication succeeded!", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onAuthenticationFailed() {
+            super.onAuthenticationFailed();
+            Toast.makeText(getApplicationContext(), "Authentication failed",
+                            Toast.LENGTH_SHORT)
+                    .show();
+        }
+
+    }
+    private ClipboardManager clipboardManager;
+    private Bundle savedInstanceState;
+    private BiometricPrompt promptInfo;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        clipboardManager = (ClipboardManager) getSystemService( CLIPBOARD_SERVICE );
+        this.savedInstanceState = savedInstanceState ;
+        //auth () ;
+        launchFileSelection () ;
+    }
+/*
+    @RequiresApi(api = Build.VERSION_CODES.P)
+    void auth () {
+        BiometricPrompt.Builder b = new BiometricPrompt.Builder(getBaseContext());
+        promptInfo = b
+                .setTitle("Biometric login for my app")
+                .setSubtitle("Log in using your biometric credential")
+                .setAllowedAuthenticators(BIOMETRIC_STRONG | DEVICE_CREDENTIAL)
+                .build();
+        BiometricPrompt.CryptoObject co = MainActivity.this;
+        Executor executor = ContextCompat.getMainExecutor(this);
+
+        promptInfo.authenticate( this, executor, new Callback() );
+    }
+
+ */
+    @SuppressWarnings("deprecation")
+    void launchFileSelection () {
         Intent intent = new Intent()
                 .setType("*/*")
                 .setAction(Intent.ACTION_GET_CONTENT);
 
         startActivityForResult(Intent.createChooser(intent, "Select a file"), 123, savedInstanceState );
-        clipboardManager = (ClipboardManager) getSystemService( CLIPBOARD_SERVICE );
-
     }
 
     @Override
