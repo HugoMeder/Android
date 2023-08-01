@@ -87,6 +87,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
         CALIB_AXIS ("Ache kalibrieren" ),
         CALIB_ACCELERATION ( "Lot kalibrieren" ),
         CALIB_AXIS_AND_ANGLE ( "Wasserwaage kalibrieren"),
+        CALIB_ACCELERATION2 ( "Lot Kalibrieren 2" ),
         TEXT_ON_OFF( "Text Ein/Aus" ) ;
 
         private final String title;
@@ -165,6 +166,13 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
                         ", es ertönt dann ein zweiter Ton"
                 ) ;
                 break ;
+            case CALIB_ACCELERATION2:
+                txt.append( "halte das Gerät ruhig\n"+
+                        "und warte bis ein Ton erklingt\n"+
+                        ", dann warte das Ende der Axenkalibrierung ab,\n"+
+                        "dann ertönt ein zweiter Ton"
+                ) ;
+                break ;
         }
         builder.setMessage(txt.toString())
                 .setPositiveButton("OK", new DialogInterface.OnClickListener() {
@@ -173,6 +181,7 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
                             case CALIB_AXIS:
                             case CALIB_ACCELERATION:
                             case CALIB_AXIS_AND_ANGLE:
+                            case CALIB_ACCELERATION2:
                                 waitForRest = true ;
                         }
 
@@ -642,6 +651,8 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
             gyro.setListener( this );
         }
     }
+    private void startGravityCalibration2() {
+    }
 
     private void playSound( boolean start ) {
 
@@ -738,6 +749,9 @@ public class SpiritLevelDisplay extends View implements AttachDetach, ScaleGestu
                     break ;
                 case CALIB_ACCELERATION:
                     startGravityCalibration();
+                    break ;
+                case CALIB_ACCELERATION2:
+                    startGravityCalibration2();
                     break ;
                 case CALIB_AXIS_AND_ANGLE:
                     startAxisAndAngle() ;
