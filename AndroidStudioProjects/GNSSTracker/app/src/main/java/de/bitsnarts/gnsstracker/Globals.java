@@ -3,13 +3,15 @@ package de.bitsnarts.gnsstracker;
 public class Globals {
 
     static int instanceNr ;
+    private final GPSService gps;
     private MainActivity mainActivity;
     private DataView dataView;
 
    public Globals(MainActivity mainActivity) {
         this.mainActivity = mainActivity ;
         instanceNr++ ;
-        new Thread ( new Tick () ).start();
+        //new Thread ( new Tick () ).start();
+       gps = new GPSService ( mainActivity ) ;
     }
 
     public void setDataView(DataView dataView) {
