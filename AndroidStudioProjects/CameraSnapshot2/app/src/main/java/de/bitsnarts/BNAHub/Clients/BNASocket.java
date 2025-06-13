@@ -26,6 +26,7 @@ public class BNASocket implements AbstractSocket {
 	}
 	
 	public BNASocket ( Socket s ) {
+		this.s = s ;
 	}
 	
 	public InputStream getInputStream () throws IOException {

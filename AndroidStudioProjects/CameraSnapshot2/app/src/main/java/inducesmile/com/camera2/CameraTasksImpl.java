@@ -606,7 +606,7 @@ public class CameraTasksImpl implements CameraTasks {
                 for ( Size s : outSizes ) {
                     log ( "\t"+(index++)+" "+s.getWidth()+" "+s.getHeight() ) ;
                 }
-                jpegPreviewSize = outSizes[17/*outSizes.length-1*/] ;
+                jpegPreviewSize = outSizes[outSizes.length-1] ;
             }
 
             imageDimension = map.getOutputSizes(SurfaceTexture.class)[0];

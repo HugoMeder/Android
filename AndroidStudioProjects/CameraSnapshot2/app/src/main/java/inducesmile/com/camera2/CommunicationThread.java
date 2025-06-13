@@ -10,10 +10,10 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.Socket;
 import java.util.Vector;
 
 import de.bitsnarts.SocketAbstraction.AbstractServerSocket;
+import de.bitsnarts.SocketAbstraction.AbstractSocket;
 import inducesmile.communication.Globals;
 import inducesmile.communication.LogUtils;
 
@@ -25,7 +25,7 @@ public class CommunicationThread implements Runnable {
     private boolean running = false ;
     private boolean ended;
     private AbstractServerSocket ss;
-    private Socket s ;
+    private AbstractSocket s ;
     private Vector<OutMessage> outQueue = new Vector<OutMessage> () ;
     private Object sendMonitor = new Object () ;
     private int previewFramesInQueue ;
@@ -162,6 +162,9 @@ public class CommunicationThread implements Runnable {
     }
 
     boolean onWLAN () {
+        if ( true ) {
+            return true;
+        }
         Context a ;
         synchronized ( this ) {
             a = context;;
