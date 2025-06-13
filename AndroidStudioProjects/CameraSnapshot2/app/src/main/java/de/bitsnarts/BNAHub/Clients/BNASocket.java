@@ -1,6 +1,5 @@
 package de.bitsnarts.BNAHub.Clients;
 
-import java.io.Closeable;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +15,7 @@ public class BNASocket implements AbstractSocket {
 
 	public BNASocket ( int seviceID ) throws IOException {
 		InetAddress server = BNALookup.getAddress () ;
-		s = new Socket ( server, Globals.port ) ;
+		s = new Socket ( server, BNAGlobals.port ) ;
 		DataOutputStream dout = new DataOutputStream ( s.getOutputStream() ) ;
 		dout.writeBoolean( false );
 		dout.writeInt( seviceID );

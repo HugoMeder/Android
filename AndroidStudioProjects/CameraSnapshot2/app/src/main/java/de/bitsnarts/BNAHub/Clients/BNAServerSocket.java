@@ -30,7 +30,7 @@ class BNAServerSocket implements AbstractServerSocket {
 	
 	public AbstractSocket accept () throws IOException {
 		InetAddress server = BNALookup.getAddress() ;
-		s = new Socket ( server, Globals.port ) ;
+		s = new Socket ( server, BNAGlobals.port ) ;
 		int to = s.getSoTimeout() ;
 		s.setSoTimeout( 0 );
 		DataOutputStream dout = new DataOutputStream ( s.getOutputStream() ) ;

@@ -3,8 +3,6 @@ package inducesmile.com.camera2;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 
 import java.io.CharArrayWriter;
 import java.io.DataInputStream;
@@ -12,15 +10,12 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Vector;
 
-import inducesmile.communication.BNALookup;
-import inducesmile.communication.BNAServerSocket;
+import de.bitsnarts.SocketAbstraction.AbstractServerSocket;
+import inducesmile.communication.Globals;
 import inducesmile.communication.LogUtils;
-
-import static android.content.Context.WIFI_SERVICE;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -29,7 +24,7 @@ public class CommunicationThread implements Runnable {
     private final CameraTasks service;
     private boolean running = false ;
     private boolean ended;
-    private BNAServerSocket ss;
+    private AbstractServerSocket ss;
     private Socket s ;
     private Vector<OutMessage> outQueue = new Vector<OutMessage> () ;
     private Object sendMonitor = new Object () ;
@@ -166,30 +161,6 @@ public class CommunicationThread implements Runnable {
         }
     }
 
-    public void run0 () {
-        InetAddress host = BNALookup.getAddress();
-        int step = 0 ;
-        service.log ( "start thread" ) ;
-        try {
-            Socket s = new Socket(host, 99 ) ;
-            for (int i = 0 ; i < 20 ; i++ ) {
-                service.log ( "step "+step++ ) ;
-                Thread.sleep(1000 );
-                boolean r ;
-                synchronized ( this ) {
-                    r = running ;
-                }
-                if ( !r ) {
-                    break ;
-                }
-            }
-            s.close();
-            service.log ( "thread stopped" ) ;
-        } catch ( Throwable th ) {
-            service.log ( exeptionToStr( th ) ) ;
-        }
-    }
-
     boolean onWLAN () {
         Context a ;
         synchronized ( this ) {
@@ -238,7 +209,13 @@ public class CommunicationThread implements Runnable {
             ended = false;
         }
         service.log ( "running" ) ;
-        ss = new BNAServerSocket( 10 ) ;
+        //ss = new BNAServerSocket( 10 ) ;
+        try {
+            ss = Globals.getSocketFactory().createServerSocket() ;
+        } catch (IOException e) {
+            service.log( e.toString() );
+            return ;
+        }
         service.log ( "server socket created" ) ;
         try {
             for (;;) {

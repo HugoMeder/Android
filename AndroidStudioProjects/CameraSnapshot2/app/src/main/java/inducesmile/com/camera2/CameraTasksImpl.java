@@ -20,7 +20,6 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -44,7 +43,6 @@ import java.util.Vector;
 
 import de.bitsnarts.android.camera_snapshot2.Utils.Logger;
 import de.bitsnarts.transform.Quaternion;
-import inducesmile.communication.BNAPrintlnService;
 import inducesmile.communication.LogUtils;
 
 import android.util.Log;

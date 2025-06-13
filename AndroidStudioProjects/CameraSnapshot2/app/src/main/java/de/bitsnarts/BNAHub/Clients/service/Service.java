@@ -9,7 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.TreeMap;
 
-import de.bitsnarts.BNAHub.Clients.Globals;
+import de.bitsnarts.BNAHub.Clients.BNAGlobals;
 
 public class Service implements Runnable {
 
@@ -116,7 +116,7 @@ public class Service implements Runnable {
 	
 	@Override
 	public void run() {
-		int port = Globals.port ;
+		int port = BNAGlobals.port ;
 		try {
 			ss = new ServerSocket ( port );
 			if ( verbose )

@@ -13,7 +13,7 @@ class BNAClientSocket extends BNASocket {
 	
 	private static Socket createSocket(int seviceID) throws IOException {
 		InetAddress server = BNALookup.getAddress () ;
-		Socket s = new Socket ( server, Globals.port ) ;
+		Socket s = new Socket ( server, BNAGlobals.port ) ;
 		DataOutputStream dout = new DataOutputStream ( s.getOutputStream() ) ;
 		dout.writeBoolean( false );
 		dout.writeInt( seviceID );

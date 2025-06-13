@@ -1,7 +1,12 @@
 package inducesmile.communication;
 
+import de.bitsnarts.BNAHub.Clients.BNASocketFactory;
+import de.bitsnarts.SocketAbstraction.AbstractSocketFactory;
+
 public class Globals {
 
-	public static final int port = 1111 ;
-	
+    static private AbstractSocketFactory factory = new BNASocketFactory( 10 ) ;
+    public static AbstractSocketFactory getSocketFactory () {
+        return factory ;
+    }
 }
