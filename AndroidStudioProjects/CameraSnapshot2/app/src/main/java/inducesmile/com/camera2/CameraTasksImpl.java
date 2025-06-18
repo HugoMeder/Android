@@ -101,7 +101,7 @@ public class CameraTasksImpl implements CameraTasks {
 
         @Override
         public void run() {
-            startFullCaptrure();
+            startFullCapture();
         }
     }
 
@@ -386,7 +386,7 @@ public class CameraTasksImpl implements CameraTasks {
         }
     }
 
-    void startFullCaptrure() {
+    void startFullCapture() {
        if(null == cameraDevice) {
             log ("cameraDevice is null");
             return;
@@ -449,7 +449,7 @@ public class CameraTasksImpl implements CameraTasks {
                             ByteBuffer buffer = image.getPlanes()[0].getBuffer();
                             log ( "IMAGE buffer "+buffer ) ;
                             int bl = buffer.capacity();
-                            FrameBufferQueue.FrameBuffer buf = imageBuffer.getBuffer(bl, image.getWidth(), image.getHeight(), 0 , jori );
+                            FrameBufferQueue.FrameBuffer buf = imageBuffer.getBuffer(bl, image.getWidth(), image.getHeight(), 0 , jpegOrientation );
                             byte[] bytes = buf.getBuffer() ;
                             buffer.get( bytes, 0, bl ) ;
                             image.close();

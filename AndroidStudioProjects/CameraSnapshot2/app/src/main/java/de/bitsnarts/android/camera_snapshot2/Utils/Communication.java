@@ -14,7 +14,7 @@ public class Communication {
                 try {
                     //Socket s = new Socket("192.168.178.125", 8888);
                     //Socket s = new Socket("87.123.129.136", 8888);
-                    Socket s = new Socket("87.123.131.74", 8888);
+                    Socket s = new Socket("192.168.0.161", 8888);
 
                     OutputStream strm = s.getOutputStream();
                     DataOutputStream out = new DataOutputStream(strm);

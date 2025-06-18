@@ -29,15 +29,24 @@ public class CommunicationThread implements Runnable {
     private Vector<OutMessage> outQueue = new Vector<OutMessage> () ;
     private Object sendMonitor = new Object () ;
     private int previewFramesInQueue ;
+    private int previewFramesSent ;
     private int imageFramesInQueue ;
     private Context context;
-
+    private int lastPWF_nr_acked = -1;
+    private long lastPWF_timestamp = 0 ;
     public void setContext(AppCompatActivity context) {
         synchronized ( this ) {
             this.context = context.getApplicationContext();
         }
     }
 
+    void setAckData ( int nr, long ts ) {
+        synchronized ( this ) {
+            this.lastPWF_nr_acked = nr ;
+            this.lastPWF_timestamp = ts ;
+        }
+
+    }
     abstract class OutMessage {
         abstract void write (DataOutput out ) throws IOException;
     }
@@ -73,9 +82,14 @@ public class CommunicationThread implements Runnable {
             dout.writeInt( buf.getHeight() );
             dout.writeInt( buf.getBufferSizes() );
             dout.write ( buf.getBuffer(), 0, buf.getBufferSizes() ) ;
+            synchronized ( this ) {
+                dout.writeInt(lastPWF_nr_acked);
+                dout.writeLong(lastPWF_timestamp);
+            }
             buf.release();
             synchronized ( outQueue ) {
                 previewFramesInQueue-- ;
+                previewFramesSent++ ;
             }
         }
     }
@@ -229,6 +243,7 @@ public class CommunicationThread implements Runnable {
                     s = ss.accept() ;
                     log ( "connected" ) ;
                     int index = 0 ;
+                    previewFramesSent = 0 ;
                     new Thread ( new SendThread() ).start() ;
                     notifySend () ;
                     DataInputStream in = new DataInputStream(s.getInputStream());
@@ -240,7 +255,11 @@ public class CommunicationThread implements Runnable {
                         log( "cmd="+cmd ) ;
                         if ( cmd == 1 )
                             service.takePicture();
-
+                        else if ( cmd == 2 ){
+                            int pwf = in.readInt() ;
+                            long pwf_timestamp = in.readLong();
+                            setAckData( pwf, pwf_timestamp );
+                        }
                         if ( !running ) {
                             s.close();
                             log("halted ");
@@ -319,7 +338,7 @@ public class CommunicationThread implements Runnable {
     public void previewImage(FrameBufferQueue.FrameBuffer buf) {
         Preview pw = new Preview ( buf ) ;
         synchronized ( sendMonitor ) {
-            if ( previewFramesInQueue > 2 ) {
+            if ( previewFramesInQueue > 2 || previewFramesSent-lastPWF_nr_acked > 10 ) {
                 buf.release();
                 return;
             }
