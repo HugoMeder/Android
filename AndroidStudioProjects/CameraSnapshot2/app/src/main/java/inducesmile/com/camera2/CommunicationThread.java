@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Vector;
 
+import de.bitsnarts.BNAHub.Camera.connectivity.ConnectionFactory;
 import de.bitsnarts.SocketAbstraction.AbstractServerSocket;
 import de.bitsnarts.SocketAbstraction.AbstractSocket;
 import inducesmile.communication.Globals;
@@ -226,21 +227,14 @@ public class CommunicationThread implements Runnable {
             ended = false;
         }
         service.log ( "running" ) ;
-        //ss = new BNAServerSocket( 10 ) ;
-        try {
-            ss = Globals.getSocketFactory().createServerSocket() ;
-        } catch (IOException e) {
-            service.log( e.toString() );
-            return ;
-        }
-        service.log ( "server socket created" ) ;
         try {
             for (;;) {
                 try {
                     if ( !onWLAN() ) {
                         throw new IOException ( "not on wlan" ) ;
                     }
-                    s = ss.accept() ;
+                    ConnectionFactory cf = ConnectionFactory.instance;
+                    s = cf.getConnection() ;
                     log ( "connected" ) ;
                     int index = 0 ;
                     previewFramesSent = 0 ;
