@@ -177,25 +177,29 @@ public class ConnectionFactory {
 	}
 	
 	public AbstractSocket getConnection () {
-		if ( asService ) {
+		for (;;) {
 			try {
-				return serverSocket.accept () ;
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		} else {
-			try {
-				for (;;) {
-					AbstractSocket rv = socketFactory.createClientSocket();
-					if ( rv != null ) {
-						return rv ;
+				AbstractSocket rv = null;
+				if (asService) {
+					rv = serverSocket.accept();
+				} else {
+					rv = socketFactory.createClientSocket();
+				}
+				if ( rv == null ) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException ex) {
+						throw new RuntimeException(ex);
 					}
 				}
 			} catch (IOException e) {
-				e.printStackTrace();
-			}
+                try {
+                    Thread.sleep( 1000 ) ;
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
 		}
-		return null ;
 	}
 	
 	private void startReceiveThread() {
