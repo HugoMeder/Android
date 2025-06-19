@@ -22,7 +22,6 @@ public class ConnectionFactory {
 
 	private boolean asService;
 	private AbstractSocketFactory socketFactory;
-	private MulticastThread multicastThread;
 	private BroadcastReceiveThread receiveThread;
 	private AbstractServerSocket serverSocket;
 	private BroadcastThread broadcastThread;
@@ -106,12 +105,6 @@ public class ConnectionFactory {
 		} catch (UnknownHostException e) {
 			throw new Error ( e ) ;
 		}
-	}
-
-	private void startMulticastThread() {
-		String la = getLocalAddress () ;
-		multicastThread = new MulticastThread ( la, group, multicastPort ) ;
-		new Thread (multicastThread).start();
 	}
 
 	private void startBroadcastThread() {

@@ -4,15 +4,18 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 
 public class MulticastReceiveThread implements Runnable {
 
+	private InetAddress group;
+	private int multicastPort;
 	private String cameraAddress;
 	
-	MulticastReceiveThread () {
+	MulticastReceiveThread ( InetAddress group, int multicastPort ) {
+		this.group = group ;
+		this.multicastPort = multicastPort ;
 	}
 	
 	String getCameraAddress () {
@@ -30,13 +33,23 @@ public class MulticastReceiveThread implements Runnable {
 	
 	@Override
 	public void run() {
-		DatagramSocket socket = null;
+		
+
+		MulticastSocket socket = null;
 		try {
-			socket = new DatagramSocket(1024);
+			socket = new MulticastSocket(multicastPort);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		try {
+			socket.joinGroup(group);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 		DatagramPacket packet;
 		for (;;) {
 		    byte[] buf = new byte[1024];
@@ -47,6 +60,7 @@ public class MulticastReceiveThread implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		    System.out.println ( "Recieved!" ) ;
 		    byte[] data = packet.getData() ;
 		    ByteArrayInputStream in = new ByteArrayInputStream ( data ) ;
 		    DataInputStream din = new DataInputStream ( in ) ;
@@ -60,8 +74,16 @@ public class MulticastReceiveThread implements Runnable {
 					break ;
 				}
 			} catch (IOException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		}
+
+		try {
+			socket.leaveGroup(group);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		socket.close();
 	}

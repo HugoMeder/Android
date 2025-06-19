@@ -43,8 +43,6 @@ class BroadcastThread implements Runnable {
 
 	@Override
 	public void run() {
-		BroadcastTest bt = new BroadcastTest();
-		bt.startReciever();
 		DatagramSocket socket = null;
 		try {
 			socket = new DatagramSocket();
