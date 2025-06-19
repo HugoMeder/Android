@@ -185,9 +185,13 @@ public class ConnectionFactory {
 			}
 		} else {
 			try {
-				return socketFactory.createClientSocket() ;
+				for (;;) {
+					AbstractSocket rv = socketFactory.createClientSocket();
+					if ( rv != null ) {
+						return rv ;
+					}
+				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
