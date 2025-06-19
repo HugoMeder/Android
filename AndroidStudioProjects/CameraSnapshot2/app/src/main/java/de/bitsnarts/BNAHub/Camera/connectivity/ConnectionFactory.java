@@ -191,6 +191,8 @@ public class ConnectionFactory {
 					} catch (InterruptedException ex) {
 						throw new RuntimeException(ex);
 					}
+				} else {
+					return rv ;
 				}
 			} catch (IOException e) {
                 try {
