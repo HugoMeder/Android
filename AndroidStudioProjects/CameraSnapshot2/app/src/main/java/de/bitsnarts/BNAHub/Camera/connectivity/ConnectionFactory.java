@@ -91,9 +91,9 @@ public class ConnectionFactory {
 
 	private static ConnectionFactory createInstance() {
 		if ( runningOnPC () ) {
-			return new ConnectionFactory ( false, false ) ;
-		} else {
 			return new ConnectionFactory ( false, true ) ;
+		} else {
+			return new ConnectionFactory ( false, false ) ;
 			
 		}
 	}

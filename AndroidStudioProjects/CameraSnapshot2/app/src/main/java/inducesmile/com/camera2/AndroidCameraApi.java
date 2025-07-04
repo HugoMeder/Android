@@ -1,4 +1,5 @@
 package inducesmile.com.camera2;
+import android.content.pm.ActivityInfo;
 import android.graphics.SurfaceTexture;
 import android.os.Bundle;
 // import android.util.Log;
@@ -52,7 +53,7 @@ public class AndroidCameraApi extends AppCompatActivity implements TextureView.S
                 takePicture();
             }
         });
-
+        setRequestedOrientation( ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
     }
 
     @Override
