@@ -8,7 +8,9 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Properties;
+import java.util.Vector;
 
 //import javax.swing.JFrame;
 
@@ -53,13 +55,9 @@ public class ConnectionFactory {
 				}
 			} else {
 				startReceiveThread () ;
-				try {
-					String addr = receiveThread.getCameraAddress() ;
-					socketFactory = new TCPSocketFactory ( addr, 8888 ) ;
-				} catch (UnknownHostException e) {
-					e.printStackTrace();
-				}
-
+				Inet4AddressWithNetworkPrefix[] addrs = receiveThread.getCameraAddress() ;
+				Inet4Address addr = selectAddress ( addrs ) ;
+				socketFactory = new TCPSocketFactory ( addr, 8888 ) ;
 				//startMulticastThread () ;
 				//startRecieveThead () ;
 				/*
@@ -89,11 +87,23 @@ public class ConnectionFactory {
 		}
 	}
 
+	private Inet4Address selectAddress(Inet4AddressWithNetworkPrefix[] addrs) {
+		List<Inet4AddressWithNetworkPrefix> las = getLocalAddress () ;
+		for ( Inet4AddressWithNetworkPrefix addr : addrs ) {
+			for ( Inet4AddressWithNetworkPrefix la : las ) {
+				if ( addr.shareNetwork ( la ) )
+					return addr.addr ;
+			}
+		}
+		return null ;
+	}
+
 	private static ConnectionFactory createInstance() {
+		boolean serverOnPC = false ;
 		if ( runningOnPC () ) {
-			return new ConnectionFactory ( false, true ) ;
+			return new ConnectionFactory ( false, serverOnPC ) ;
 		} else {
-			return new ConnectionFactory ( false, false ) ;
+			return new ConnectionFactory ( false, !serverOnPC ) ;
 			
 		}
 	}
@@ -108,12 +118,13 @@ public class ConnectionFactory {
 	}
 
 	private void startBroadcastThread() {
-		String la = getLocalAddress () ;
-		broadcastThread = new BroadcastThread ( la ) ;
+		//List<Inet4AddressWithNetworkPrefix> la = getLocalAddress () ;
+		broadcastThread = new BroadcastThread ( ) ;
 		new Thread (broadcastThread).start();
 	}
 
-	private static String getLocalAddress() {
+	static List<Inet4AddressWithNetworkPrefix> getLocalAddress() {
+		Vector<Inet4AddressWithNetworkPrefix> rv = new Vector<Inet4AddressWithNetworkPrefix> () ;
 		Enumeration<NetworkInterface> e;
 		try {
 			e = NetworkInterface.getNetworkInterfaces();
@@ -122,11 +133,20 @@ public class ConnectionFactory {
 			return null ;
 		}
 		
-		Inet4Address rv = null ;
 		while(e.hasMoreElements())
 		{
 			NetworkInterface n = (NetworkInterface) e.nextElement();
-			Enumeration<InetAddress> ee = n.getInetAddresses();
+			List<InterfaceAddress> ee = n.getInterfaceAddresses() ;
+			for ( InterfaceAddress ia : ee ) {
+				InetAddress addr = ia.getAddress() ;
+				if ( addr != null && addr instanceof Inet4Address ) {
+					Inet4Address addr4 = (Inet4Address)addr ;
+					if ( addr4.isSiteLocalAddress() && !addr4.isLoopbackAddress() ) {
+						rv.add( new Inet4AddressWithNetworkPrefix( ia.getNetworkPrefixLength(), addr4 ) ) ;
+					}
+				}
+			}
+			/*
 			if ( ee.hasMoreElements() ) {
 				String name = n.getName() ;
 				boolean iswlan = name.indexOf( "wlan" ) == 0 ;
@@ -140,14 +160,17 @@ public class ConnectionFactory {
 						if ( i instanceof Inet4Address ) {
 							if ( rv != null )
 								System.out.println ( "doppelte addresse" ) ;
-							rv = (Inet4Address) i ;
+							Inet4Address addr = (Inet4Address) i ;
+							String str = addr.getHostAddress() ;
+							if ( !str.equals( "127.0.0.1") )
+								rv.add(str) ;
 						}
 						System.out.println ( "\t"+i ) ;
 					}
 				}
-			}
+			}*/
 		}
-		return rv.getHostAddress() ;
+		return rv ;
 	}
 
 	static String getBroadcastAddress () throws SocketException {

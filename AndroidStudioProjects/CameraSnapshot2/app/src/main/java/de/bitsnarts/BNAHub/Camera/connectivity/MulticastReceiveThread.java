@@ -11,14 +11,14 @@ public class MulticastReceiveThread implements Runnable {
 
 	private InetAddress group;
 	private int multicastPort;
-	private String cameraAddress;
+	private String[] cameraAddress;
 	
 	MulticastReceiveThread ( InetAddress group, int multicastPort ) {
 		this.group = group ;
 		this.multicastPort = multicastPort ;
 	}
 	
-	String getCameraAddress () {
+	String[] getCameraAddress () {
 		synchronized ( this ) {
 			while ( cameraAddress == null ) {
 				try {
@@ -52,7 +52,7 @@ public class MulticastReceiveThread implements Runnable {
 
 		DatagramPacket packet;
 		for (;;) {
-		    byte[] buf = new byte[1024];
+		    byte[] buf = new byte[1024*2];
 		    packet = new DatagramPacket(buf, buf.length);
 		    try {
 				socket.receive(packet);
@@ -67,9 +67,13 @@ public class MulticastReceiveThread implements Runnable {
 		    try {
 				int key = din.readInt() ;
 				int vers = din.readInt() ;
-				String addr = din.readUTF() ;
+				int n = din.readInt() ;
+				String[] addrs = new String[n] ;
+				for ( int i = 0 ; i < n ; i++ ) {
+					addrs[i] = din.readUTF() ;
+				}
 				synchronized ( this ) {
-					cameraAddress = addr ;
+					cameraAddress = addrs ;
 					notifyAll();
 					break ;
 				}

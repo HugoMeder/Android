@@ -5,17 +5,18 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 
 public class BroadcastReceiveThread implements Runnable {
 
-	private String cameraAddress;
+	private Inet4AddressWithNetworkPrefix[] cameraAddress;
 	
 	BroadcastReceiveThread () {
 	}
 	
-	String getCameraAddress () {
+	Inet4AddressWithNetworkPrefix[] getCameraAddress () {
 		synchronized ( this ) {
 			while ( cameraAddress == null ) {
 				try {
@@ -37,7 +38,7 @@ public class BroadcastReceiveThread implements Runnable {
 			e.printStackTrace();
 		}
 		DatagramPacket packet;
-		for (int i = 0; i < 5; i++) {
+		for (;;) {
 		    byte[] buf = new byte[1024];
 		    packet = new DatagramPacket(buf, buf.length);
 		    try {
@@ -51,9 +52,15 @@ public class BroadcastReceiveThread implements Runnable {
 		    try {
 				int key = din.readInt() ;
 				int vers = din.readInt() ;
-				String addr = din.readUTF() ;
+				int n = din.readInt() ;
+				Inet4AddressWithNetworkPrefix[] addrs = new Inet4AddressWithNetworkPrefix[n] ;
+				for ( int j = 0 ; j < n ; j++ ) {
+					int npl = din.readByte() ;
+					Inet4Address addr = (Inet4Address)InetAddress.getByName( din.readUTF() ) ;
+					addrs[j] = new Inet4AddressWithNetworkPrefix ( npl, addr ) ;
+				}
 				synchronized ( this ) {
-					cameraAddress = addr ;
+					cameraAddress = addrs ;
 					notifyAll();
 					break ;
 				}

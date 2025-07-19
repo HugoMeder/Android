@@ -9,36 +9,38 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.List;
 
 class BroadcastThread implements Runnable {
 
-	private String la;
-	private DatagramPacket dg;
+	private List<Inet4AddressWithNetworkPrefix> la;
+	private DatagramPacket[] dgs;
 	
-	public BroadcastThread(String la ) { 
-		this.la = la ;
-		dg = createDatagram () ;
-		}
+	public BroadcastThread() {
+	}
 
-	private DatagramPacket createDatagram() {
+	private DatagramPacket[] createDatagrams() {
 		ByteArrayOutputStream out = new ByteArrayOutputStream () ;
 		DataOutputStream dout = new DataOutputStream ( out ) ;
 		try {
 			dout.writeInt ( 1234 ) ;
-			dout.writeInt( 0 );// version 
-			dout.writeUTF(la);
+			dout.writeInt( 1 );// version 
+			dout.writeInt( la.size() );
+			for (Inet4AddressWithNetworkPrefix a : la ) {
+				dout.writeByte( a.networkPrefixLength );
+				dout.writeUTF(a.addr.getHostAddress() );
+			}
 			dout.flush();
 		} catch (IOException e) {
 		}
 		byte[] buffer = out.toByteArray() ;
 		InetAddress addr = null;
-		try {
-			addr = InetAddress.getByName ( "255.255.255.255" );
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
+		int n = la.size() ;
+		DatagramPacket[] rv = new DatagramPacket[n] ;
+		for ( int i = 0 ; i < n ; i++ ) {
+			rv[i] = new DatagramPacket(buffer, buffer.length, la.get(i).getBroadcstAddress(), 1024 );
 		}
-		DatagramPacket dg = new DatagramPacket(buffer, buffer.length, addr, 1024 );
-		return dg ;
+		return rv ;
 	}
 
 	@Override
@@ -56,7 +58,11 @@ class BroadcastThread implements Runnable {
         }
         for ( ;; ) {
         	try {
-				socket.send(dg);
+				la = ConnectionFactory.getLocalAddress () ;
+				dgs = createDatagrams () ;
+				for ( DatagramPacket dg : dgs ) {
+					socket.send(dg);
+				}
 				System.out.println ( "Sent" ) ;
 			} catch (IOException e) {
 				e.printStackTrace();
