@@ -38,8 +38,8 @@ public class BroadcastReceiveThread implements Runnable {
 			e.printStackTrace();
 		}
 		DatagramPacket packet;
+	    byte[] buf = new byte[1024];
 		for (;;) {
-		    byte[] buf = new byte[1024];
 		    packet = new DatagramPacket(buf, buf.length);
 		    try {
 				socket.receive(packet);

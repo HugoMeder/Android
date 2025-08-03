@@ -20,24 +20,29 @@ class BroadcastThread implements Runnable {
 	}
 
 	private DatagramPacket[] createDatagrams() {
-		ByteArrayOutputStream out = new ByteArrayOutputStream () ;
-		DataOutputStream dout = new DataOutputStream ( out ) ;
-		try {
-			dout.writeInt ( 1234 ) ;
-			dout.writeInt( 1 );// version 
-			dout.writeInt( la.size() );
-			for (Inet4AddressWithNetworkPrefix a : la ) {
-				dout.writeByte( a.networkPrefixLength );
-				dout.writeUTF(a.addr.getHostAddress() );
-			}
-			dout.flush();
-		} catch (IOException e) {
-		}
-		byte[] buffer = out.toByteArray() ;
-		InetAddress addr = null;
 		int n = la.size() ;
 		DatagramPacket[] rv = new DatagramPacket[n] ;
+		ByteArrayOutputStream out = new ByteArrayOutputStream () ;
+		DataOutputStream dout = new DataOutputStream ( out ) ;
 		for ( int i = 0 ; i < n ; i++ ) {
+			try {
+				dout.writeInt ( 1234 ) ;
+				dout.writeInt( 1 );// version 
+				/*
+				dout.writeInt( la.size() );
+				for (Inet4AddressWithNetworkPrefix a : la ) {
+					dout.writeByte( a.networkPrefixLength );
+					dout.writeUTF(a.addr.getHostAddress() );
+				}*/
+				dout.writeInt( 1 );
+				Inet4AddressWithNetworkPrefix a = la.get(i) ;
+				dout.writeByte( a.networkPrefixLength );
+				dout.writeUTF(a.addr.getHostAddress() );
+				dout.flush();
+			} catch (IOException e) {
+			}
+			byte[] buffer = out.toByteArray() ;
+			out.reset();
 			rv[i] = new DatagramPacket(buffer, buffer.length, la.get(i).getBroadcstAddress(), 1024 );
 		}
 		return rv ;
